@@ -4,11 +4,12 @@ Created on Jun 5, 2021
 @author: immanueltrummer
 '''
 from sentence_transformers import SentenceTransformer, util
+from transformers import pipeline
+import cp.query
 import gym
 from gym import spaces
 import numpy as np
 import torch
-from numpy import dtype
 
 class EmbeddingGraph():
     """ Graph connecting nodes with similar label embeddings. """
@@ -54,6 +55,40 @@ class EmbeddingGraph():
         return self.neighbors[node][n_id]
 
 
+class Fact():
+    """ Represents one fact in a data summary. """
+    
+    def __init__(self, nr_preds):
+        """ Initialize fact for given number of predicates. 
+        
+        Args:
+            nr_preds: (maximal) number of scope predicates
+        """
+        self.nr_preds = nr_preds
+        self.nr_props = nr_preds + 1
+        
+    def get_agg(self):
+        """ Returns index of aggregate. """
+        return self.props[self.nr_preds]
+        
+    def get_preds(self):
+        """ Returns fact predicates (indices). """
+        return self.props[0:self.nr_preds]
+        
+    def change(self, prop_id, new_val):
+        """ Change fact property to new value. 
+        
+        Args:
+            prop_id: change value of this property
+            new_val: assign property to this value
+        """
+        self.props[prop_id] = new_val
+            
+    def reset(self):
+        """ Reset properties to default values. """
+        self.props = [0] * self.nr_props
+
+
 class PickingEnv(gym.Env):
     """ Environment for selecting facts for a data summary. """
     
@@ -81,35 +116,82 @@ class PickingEnv(gym.Env):
         self.nr_facts = nr_facts
         self.nr_preds = nr_preds
         self.degree = degree
+        self.q_engine = cp.query.QueryEngine(connection, table, cmp_pred)
+        self.judge = pipeline("sentiment-analysis", 
+                              model="siebert/sentiment-roberta-large-english")
         
         self.agg_graph = EmbeddingGraph(agg_cols, degree)
         self.all_preds = self._preds()
         pred_labels = [f'{p} is {v}' for p, v in self.all_preds]
         self.pred_graph = EmbeddingGraph(pred_labels, degree)
 
-        self.nr_props = nr_facts * (nr_preds + 1)
-        action_dims = [self.nr_props + 1, degree]
+        self.cur_facts = []
+        for _ in range(nr_facts):
+            self.cur_facts.append(Fact())
+
+        self.props_per_fact = nr_preds + 1
+        action_dims = [nr_facts + 1, self.props_per_fact, degree]
         self.action_space = spaces.MultiDiscrete(action_dims)
         
-        self.cur_preds = [0] * nr_facts * nr_preds
-        self.cur_aggs = [0] * nr_facts
+        self.nr_props = nr_facts * self.props_per_fact
         self.observation_space = spaces.Box(
             low=-10, high=10, shape=(self.nr_props, 768), dtype=np.float32)
     
     def step(self, action):
+        """ Change fact or trigger evaluation. """
         self.nr_steps += 1
-        pass
+        
+        if self.nr_steps >= 100 or action[0] >= self.nr_facts:
+            done = True
+            reward = self._evaluate()
+        else:
+            fact_idx = action[0]
+            prop_idx = action[1]
+            new_val = action[2]
+            self.cur_facts[fact_idx].change(prop_idx, new_val)
+            
+            done = False
+            reward = 0
+        
+        return self._observe(), reward, done, {}
         
     def reset(self):
         """ Reset data summary to default. """
         self.nr_steps = 0
-        for i in range(self.nr_facts * self.nr_):
-            self.[i] = 0
+        for fact in self.cur_facts:
+            fact.reset()
+            
         return self._observe()
         
     def _evaluate(self):
         """ Evaluate quality of current summary. """
-        pass
+        text = self._generate()
+        sent = self.judge(text)[0]
+        label = sent['label']
+        score = sent['score']
+        
+        if label == 'POSITIVE':
+            reward = score
+        else:
+            reward = -score
+        print(f'Reward {reward} for "{text}"')
+        return reward
+    
+    def _generate(self):
+        """ Generate textual data summary. """
+        s_parts = []
+        for fact in self.cur_facts:
+            s_parts.append(f'Among all {self.table} ')
+            preds = [self.all_preds[i] for i in fact.get_preds()]
+            for pred in preds:
+                s_parts.append(f'with {pred[0]} {pred[1]}, ')
+                
+            agg_idx = fact.get_agg()
+            rel_avg = self.q_engine.rel_avg(preds, agg_idx)
+            agg_col = self.agg_cols[agg_idx]
+            s_parts.append(f'its average {agg_col} is {rel_avg} times the default.')
+        
+        return ' '.join(s_parts)
         
     def _observe(self):
         """ Returns observations for learning agent. """
