@@ -128,6 +128,7 @@ class PickingEnv(gym.Env):
         self.cur_facts = []
         for _ in range(nr_facts):
             self.cur_facts.append(Fact(nr_preds))
+        self.text_to_reward = {}
 
         self.props_per_fact = nr_preds + 1
         action_dims = [nr_facts + 1, self.props_per_fact, degree]
@@ -136,6 +137,10 @@ class PickingEnv(gym.Env):
         self.nr_props = nr_facts * self.props_per_fact
         self.observation_space = spaces.Box(
             low=-10, high=10, shape=(self.nr_props, 384), dtype=np.float32)
+    
+    def best_summary(self):
+        """ Returns data summary with highest reward. """
+        return max(self.text_to_reward, key=self.text_to_reward.get)
     
     def step(self, action):
         """ Change fact or trigger evaluation. """
@@ -175,6 +180,7 @@ class PickingEnv(gym.Env):
         else:
             reward = -score
         print(f'Reward {reward} for "{text}"')
+        self.text_to_reward[text] = reward
         return reward
     
     def _generate(self):
@@ -187,8 +193,8 @@ class PickingEnv(gym.Env):
                 s_parts.append(f'with {pred[0]} {pred[1]}, ')
                 
             agg_idx = fact.get_agg()
-            rel_avg = self.q_engine.rel_avg(preds, agg_idx)
             agg_col = self.agg_cols[agg_idx]
+            rel_avg = self.q_engine.rel_avg(preds, agg_col)
             s_parts.append(f'its average {agg_col} is {rel_avg} times the default.')
         
         return ' '.join(s_parts)
@@ -207,8 +213,7 @@ class PickingEnv(gym.Env):
             agg_emb = self.agg_graph.get_embedding(agg_idx)
             components.append(agg_emb)
         
-        obs = torch.stack(components, dim=0).numpy()
-        return obs
+        return torch.stack(components, dim=0).numpy()
         
     def _preds(self):
         """ Generates all possible equality predicates. 
