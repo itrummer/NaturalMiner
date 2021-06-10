@@ -18,35 +18,40 @@ class QueryEngine():
         self.table = table
         self.cmp_pred = cmp_pred
     
-    def rel_avg(self, preds, agg_col):
+    def rel_avg(self, eq_preds, agg_col):
         """ Relative average of focus entity in given data scope. 
         
         Args:
-            preds: analyze data in scope defined by predicates
+            eq_preds: equality predicates definint scope
             agg_col: consider averages in this column
             
         Returns:
             Ratio of entity to general average
         """
-        entity_avg = self.avg(preds + [self.cmp_pred], agg_col)
-        general_avg = self.avg(preds, agg_col)
+        entity_avg = self.avg(eq_preds, self.cmp_pred, agg_col)
+        general_avg = self.avg(eq_preds, 'true', agg_col)
         
-        return entity_avg / general_avg
+        f_gen_avg = max(0.0001, float(general_avg))
+        return float(entity_avg) / f_gen_avg
     
-    def avg(self, preds, agg_col):
+    def avg(self, eq_preds, pred, agg_col):
         """ Calculate average over aggregation column in scope. 
         
         Args:
-            preds: consider rows satisfying those predicates
+            eq_preds: equality predicates as column-value pairs
+            pred: SQL string representing predicate
             agg_col: calculate average for this column
             
         Returns:
             Average over aggregation column for satisfying rows
         """
-        q_parts = [f'select avg({agg_col}) from {self.table} where TRUE'] + preds
+        q_parts = [f'select avg({agg_col}) from {self.table} where TRUE'] 
+        q_parts += [f"{c}='{v}'" for c, v in eq_preds]
+        q_parts += [pred]
         query = ' AND '.join(q_parts)
         
         with self.connection.cursor() as cursor:
-            avg = cursor.execute(query).fetchone()[0]
+            cursor.execute(query)
+            avg = cursor.fetchone()[0]
             
         return avg

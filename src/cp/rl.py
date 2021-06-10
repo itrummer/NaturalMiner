@@ -29,7 +29,7 @@ class EmbeddingGraph():
         nr_labels = len(labels)
         for i in range(nr_labels):
             _, indices = torch.topk(cosine_sims[i], degree)
-            self.neighbors.append[indices]
+            self.neighbors.append(indices)
 
     def get_embedding(self, node_id):
         """ Returns embedding of given node.
@@ -127,7 +127,7 @@ class PickingEnv(gym.Env):
 
         self.cur_facts = []
         for _ in range(nr_facts):
-            self.cur_facts.append(Fact())
+            self.cur_facts.append(Fact(nr_preds))
 
         self.props_per_fact = nr_preds + 1
         action_dims = [nr_facts + 1, self.props_per_fact, degree]
@@ -135,7 +135,7 @@ class PickingEnv(gym.Env):
         
         self.nr_props = nr_facts * self.props_per_fact
         self.observation_space = spaces.Box(
-            low=-10, high=10, shape=(self.nr_props, 768), dtype=np.float32)
+            low=-10, high=10, shape=(self.nr_props, 384), dtype=np.float32)
     
     def step(self, action):
         """ Change fact or trigger evaluation. """
@@ -197,18 +197,18 @@ class PickingEnv(gym.Env):
         """ Returns observations for learning agent. """
         components = []
         for fact_ctr in range(self.nr_facts):
-            for pred_ctr in range(self.nr_preds):
-                sum_idx = fact_ctr * (self.nr_preds+1) + pred_ctr
-                pred_idx = self.summary[sum_idx]
+            fact = self.cur_facts[fact_ctr]
+            preds = fact.get_preds()
+            for pred_idx in preds:
                 pred_emb = self.pred_graph.get_embedding(pred_idx)
                 components.append(pred_emb)
                 
-            sum_idx = (fact_ctr+1) * (self.nr_preds+1) - 1
-            agg_idx = self.summary[sum_idx]
+            agg_idx = fact.get_agg()
             agg_emb = self.agg_graph.get_embedding(agg_idx)
             components.append(agg_emb)
         
-        return torch.stack(components, dim=0)
+        obs = torch.stack(components, dim=0).numpy()
+        return obs
         
     def _preds(self):
         """ Generates all possible equality predicates. 
@@ -219,6 +219,9 @@ class PickingEnv(gym.Env):
         preds = []
         for dim in self.dim_cols:
             with self.connection.cursor() as cursor:
-                query = f'select distinct {dim} from {self.table}'
-                result = cursor.execute(query).fetchall()
+                query = f'select distinct {dim} from {self.table} ' \
+                    f'where {self.cmp_pred}'
+                cursor.execute(query)
+                result = cursor.fetchall()
                 preds += [(dim, r[0]) for r in result]
+        return preds
