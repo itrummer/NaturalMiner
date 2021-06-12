@@ -14,7 +14,7 @@ with psycopg2.connect(
         connection, 'laptops', 
         ['brand', 'processor_type', 'graphics_card', 'disk_space', 'ratings_5max'], 
         ['display_size', 'discount_price', 'old_price'], 
-        "laptop_name='MateBook D Volta'", 2, 2, 2)
+        "laptop_name='MateBook D Volta'", 1, 2, 2)
     stable_baselines3.common.env_checker.check_env(env)
     model = A2C(
         'MlpPolicy', env, verbose=True, 
@@ -23,8 +23,8 @@ with psycopg2.connect(
     
     best_summary = env.best_summary()
     print(f'Best summary: "{best_summary}"')
-    for best in [False, True]:
+    for best in [True, False]:
         print(f'Top-K summaries (Best: {best})')
-        topk_summaries = env.topk_summaries(5, best)
+        topk_summaries = env.topk_summaries(2, best)
         for s in topk_summaries:
             print(s)

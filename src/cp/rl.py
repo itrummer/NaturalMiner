@@ -152,9 +152,8 @@ class PickingEnv(gym.Env):
         Returns:
             returns up to k summaries with rewards
         """
-        reverse = not best
         sorted_sums = sorted(self.text_to_reward.items(), 
-                             key=lambda s: s[1], reverse=reverse)
+                             key=lambda s: s[1], reverse=best)
         if len(self.text_to_reward) < k:
             return sorted_sums
         else:
