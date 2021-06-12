@@ -74,10 +74,10 @@ class Fact():
     def get_preds(self):
         """ Returns fact predicates (indices). """
         return self.props[0:self.nr_preds]
-        
+
     def change(self, prop_id, new_val):
         """ Change fact property to new value. 
-        
+
         Args:
             prop_id: change value of this property
             new_val: assign property to this value
@@ -142,6 +142,24 @@ class PickingEnv(gym.Env):
         """ Returns data summary with highest reward. """
         return max(self.text_to_reward, key=self.text_to_reward.get)
     
+    def topk_summaries(self, k, best):
+        """ Returns the top-k data summaries.
+        
+        Args:
+            k: retrieve that many summaries
+            best: return best (not worst) summaries
+            
+        Returns:
+            returns up to k summaries with rewards
+        """
+        reverse = not best
+        sorted_sums = sorted(self.text_to_reward.items(), 
+                             key=lambda s: s[1], reverse=reverse)
+        if len(self.text_to_reward) < k:
+            return sorted_sums
+        else:
+            return sorted_sums[0:k]
+    
     def step(self, action):
         """ Change fact or trigger evaluation. """
         self.nr_steps += 1
@@ -167,7 +185,18 @@ class PickingEnv(gym.Env):
             fact.reset()
             
         return self._observe()
+    
+    def _is_pred(self, pred):
+        """ Checks if tuple represents predicate. 
         
+        Args:
+            pred: column and associated value
+            
+        Returns:
+            true iff predicate represents condition
+        """
+        return not pred[0].startswith("'")
+    
     def _evaluate(self):
         """ Evaluate quality of current summary. """
         text = self._generate()
@@ -190,14 +219,24 @@ class PickingEnv(gym.Env):
             s_parts.append(f'Among all {self.table} ')
             preds = [self.all_preds[i] for i in fact.get_preds()]
             for pred in preds:
-                s_parts.append(f'with {pred[0]} {pred[1]}, ')
+                if self._is_pred(pred):
+                    s_parts.append(f'with {pred[0]} {pred[1]}, ')
                 
             agg_idx = fact.get_agg()
             agg_col = self.agg_cols[agg_idx]
             rel_avg = self.q_engine.rel_avg(preds, agg_col)
-            s_parts.append(f'its average {agg_col} is {rel_avg} times the default.')
+            percent = int(rel_avg * 100)
+            percent_d = 100 - percent
+            if percent_d != 0:
+                cmp_text = f'{percent_d}% '
+                cmp_text += 'higher ' if percent_d > 0 else 'lower '
+                cmp_text += 'than average'
+            else:
+                cmp_text = 'about average'
+            s_parts.append(
+                f'its {agg_col} is {cmp_text}.')
         
-        return ' '.join(s_parts)
+        return ' '.join(s_parts).replace('_', ' ').replace('  ', ' ')
         
     def _observe(self):
         """ Returns observations for learning agent. """
@@ -221,7 +260,7 @@ class PickingEnv(gym.Env):
         Returns:
             list of (column, value) pairs representing predicates
         """
-        preds = []
+        preds = [("'any'", 'any')]
         for dim in self.dim_cols:
             with self.connection.cursor() as cursor:
                 query = f'select distinct {dim} from {self.table} ' \
