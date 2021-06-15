@@ -66,14 +66,6 @@ class Fact():
         """
         self.nr_preds = nr_preds
         self.nr_props = nr_preds + 1
-        
-    def get_agg(self):
-        """ Returns index of aggregate. """
-        return self.props[self.nr_preds]
-        
-    def get_preds(self):
-        """ Returns fact predicates (indices). """
-        return self.props[0:self.nr_preds]
 
     def change(self, prop_id, new_val):
         """ Change fact property to new value. 
@@ -83,6 +75,18 @@ class Fact():
             new_val: assign property to this value
         """
         self.props[prop_id] = new_val
+        
+    def get_agg(self):
+        """ Returns index of aggregate. """
+        return self.props[self.nr_preds]
+    
+    def get_id(self):
+        """ Returns ID string. """
+        return "_".join([str(p) for p in self.props])
+    
+    def get_preds(self):
+        """ Returns fact predicates (indices). """
+        return self.props[0:self.nr_preds]
             
     def reset(self):
         """ Reset properties to default values. """
@@ -94,7 +98,8 @@ class PickingEnv(gym.Env):
     
     def __init__(self, connection, table, dim_cols, 
                  agg_cols, cmp_pred, nr_facts, nr_preds,
-                 degree):
+                 degree, preamble, dims_tmp, aggs_txt,
+                 q_engine):
         """ Read database to initialize environment. 
         
         Args:
@@ -106,6 +111,10 @@ class PickingEnv(gym.Env):
             nr_facts: at most that many facts in description
             nr_preds: at most that many predicates per fact
             degree: degree for all transition graphs
+            preamble: starts each data summary
+            dims_tmp: assigns each dimension to text template
+            aggs_txt: assigns each aggregate to text snippet
+            q_engine: issues queries to database
         """
         super(PickingEnv, self).__init__()
         self.connection = connection
@@ -116,7 +125,10 @@ class PickingEnv(gym.Env):
         self.nr_facts = nr_facts
         self.nr_preds = nr_preds
         self.degree = degree
-        self.q_engine = cp.query.QueryEngine(connection, table, cmp_pred)
+        self.preamble = preamble
+        self.dims_tmp = dims_tmp
+        self.aggs_txt = aggs_txt
+        self.q_engine = q_engine
         self.judge = pipeline("sentiment-analysis", 
                               model="siebert/sentiment-roberta-large-english")
         
@@ -128,6 +140,7 @@ class PickingEnv(gym.Env):
         self.cur_facts = []
         for _ in range(nr_facts):
             self.cur_facts.append(Fact(nr_preds))
+        self.fact_to_text = {}
         self.text_to_reward = {}
 
         self.props_per_fact = nr_preds + 1
@@ -199,43 +212,67 @@ class PickingEnv(gym.Env):
     def _evaluate(self):
         """ Evaluate quality of current summary. """
         text = self._generate()
-        sent = self.judge(text)[0]
-        label = sent['label']
-        score = sent['score']
         
-        if label == 'POSITIVE':
-            reward = score
+        if text in self.text_to_reward:
+            reward = self.text_to_reward[text]
         else:
-            reward = -score
+            sent = self.judge(text)[0]
+            label = sent['label']
+            score = sent['score']
+            if label == 'POSITIVE':
+                reward = score
+            else:
+                reward = -score
+            self.text_to_reward[text] = reward
+
         print(f'Reward {reward} for "{text}"')
-        self.text_to_reward[text] = reward
         return reward
+    
+    def _fact_txt(self, fact):
+        """ Generate text describing fact. 
+        
+        Args:
+            fact: a fact to describe
+            
+        Returns:
+            text description of fact
+        """
+        f_parts = [self.preamble]
+        preds = [self.all_preds[i] for i in fact.get_preds()]
+        for pred in preds:
+            if self._is_pred(pred):
+                dim_idx = self.dim_cols.index(pred[0])
+                dim_tmp = self.dims_tmp[dim_idx]
+                dim_txt = dim_tmp.replace('<V>', pred[1])
+                f_parts.append(dim_txt)
+            
+        agg_idx = fact.get_agg()
+        agg_col = self.agg_cols[agg_idx]
+        rel_avg = self.q_engine.rel_avg(preds, agg_col)
+        percent = int(rel_avg * 100)
+        percent_d = percent - 100
+        if percent_d != 0:
+            cmp_text = f'{abs(percent_d)}% '
+            cmp_text += 'higher ' if percent_d > 0 else 'lower '
+            cmp_text += 'than average'
+        else:
+            cmp_text = 'about average'                
+        f_parts.append(f'{self.aggs_txt[agg_idx]} is {cmp_text}.')
+        return ' '.join(f_parts).replace('_', ' ').replace('  ', ' ')
     
     def _generate(self):
         """ Generate textual data summary. """
         s_parts = []
         for fact in self.cur_facts:
-            s_parts.append(f'Among all {self.table} ')
-            preds = [self.all_preds[i] for i in fact.get_preds()]
-            for pred in preds:
-                if self._is_pred(pred):
-                    s_parts.append(f'with {pred[0]} {pred[1]}, ')
-                
-            agg_idx = fact.get_agg()
-            agg_col = self.agg_cols[agg_idx]
-            rel_avg = self.q_engine.rel_avg(preds, agg_col)
-            percent = int(rel_avg * 100)
-            percent_d = 100 - percent
-            if percent_d != 0:
-                cmp_text = f'{percent_d}% '
-                cmp_text += 'higher ' if percent_d > 0 else 'lower '
-                cmp_text += 'than average'
+            f_id = fact.get_id()
+            if f_id in self.fact_to_text:
+                f_txt = self.fact_to_text[f_id]                
             else:
-                cmp_text = 'about average'
-            s_parts.append(
-                f'its {agg_col} is {cmp_text}.')
+                f_txt = self._fact_txt(fact)
+                self.fact_to_text[f_id] = f_txt
+            s_parts.append(f_txt)
         
-        return ' '.join(s_parts).replace('_', ' ').replace('  ', ' ')
+        return ' '.join(s_parts)
         
     def _observe(self):
         """ Returns observations for learning agent. """
@@ -261,6 +298,7 @@ class PickingEnv(gym.Env):
         """
         preds = [("'any'", 'any')]
         for dim in self.dim_cols:
+            print(f'Generating predicates for dimension {dim} ...')
             with self.connection.cursor() as cursor:
                 query = f'select distinct {dim} from {self.table} ' \
                     f'where {self.cmp_pred}'

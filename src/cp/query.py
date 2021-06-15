@@ -3,18 +3,24 @@ Created on Jun 5, 2021
 
 @author: immanueltrummer
 '''
+import psycopg2
+
 class QueryEngine():
     """ Processes queries distinguishing entities from others. """
     
-    def __init__(self, connection, table, cmp_pred):
+    def __init__(self, dbname, dbuser, dbpwd, table, cmp_pred):
         """ Initialize query engine for specific connection.
         
         Args:
-            connection: connection to database
+            dbname: name of database to query
+            dbuser: database user name
+            dbpwd: database login password
             table: queries refer to this table
             cmp_pred: use for comparisons
         """
-        self.connection = connection
+        self.dbname = dbname
+        self.dbuser = dbuser
+        self.dbpwd = dbpwd
         self.table = table
         self.cmp_pred = cmp_pred
     
@@ -22,7 +28,7 @@ class QueryEngine():
         """ Relative average of focus entity in given data scope. 
         
         Args:
-            eq_preds: equality predicates definint scope
+            eq_preds: equality predicates defining scope
             agg_col: consider averages in this column
             
         Returns:
@@ -50,8 +56,12 @@ class QueryEngine():
         q_parts += [pred]
         query = ' AND '.join(q_parts)
         
-        with self.connection.cursor() as cursor:
-            cursor.execute(query)
-            avg = cursor.fetchone()[0]
+        with psycopg2.connect(dbname=self.dbname, 
+                              user=self.dbuser, 
+                              password=self.dbpwd) as connection:
+            with connection.cursor() as cursor:
+                print(f'About to execute query {query}')
+                cursor.execute(query)
+                avg = cursor.fetchone()[0]
             
         return avg

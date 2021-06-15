@@ -7,14 +7,31 @@ import cp.rl
 import psycopg2
 import stable_baselines3.common.env_checker
 from stable_baselines3 import A2C
+from cp.query import QueryEngine
 
 with psycopg2.connect(
     database='picker', user='immanueltrummer') as connection:
+    connection.autocommit = True
+    q_engine = QueryEngine('picker', 'immanueltrummer', '', 'liquor', "storename='Wilkie Liquors'")
+    # env = cp.rl.PickingEnv(
+        # connection, 'laptops', 
+        # ['brand', 'processor_type', 'graphics_card', 'disk_space', 'ratings_5max'], 
+        # ['display_size', 'discount_price', 'old_price'], 
+        # "laptop_name='MateBook D Volta'", 1, 2, 2,
+        # 'Among all laptops', 
+        # ['with <V> brand', 'with <V> CPU', 'with <V> graphics card', 
+        # 'with <V> disk space', 'with <V> stars'],
+        # ['its display size', 'its discounted price', 'its old price'])
     env = cp.rl.PickingEnv(
-        connection, 'laptops', 
-        ['brand', 'processor_type', 'graphics_card', 'disk_space', 'ratings_5max'], 
-        ['display_size', 'discount_price', 'old_price'], 
-        "laptop_name='MateBook D Volta'", 1, 2, 2)
+        connection, 'liquor', 
+        ['city', 'countyname', 'categoryname'], 
+        ['bottlessold', 'salevalue', 'volumesold'], 
+        "storename='Wilkie Liquors'", 1, 2, 2,
+        'Among all stores', 
+        ['in <V>', 'in <V>', 'considering <V>'],
+        ['the number of bottles sold', 'the total sales value', 'the volume sold'],
+        q_engine)
+
     stable_baselines3.common.env_checker.check_env(env)
     model = A2C(
         'MlpPolicy', env, verbose=True, 
