@@ -87,7 +87,15 @@ class Fact():
     def get_preds(self):
         """ Returns fact predicates (indices). """
         return self.props[0:self.nr_preds]
-            
+    
+    def get_prop(self, prop_id):
+        """ Returns current value for property. """
+        return self.props[prop_id]
+    
+    def is_agg(self, prop_id):
+        """ Returns true iff property represents aggregate. """
+        return True if prop_id == self.nr_preds else False
+    
     def reset(self):
         """ Reset properties to default values. """
         self.props = [0] * self.nr_props
@@ -98,8 +106,8 @@ class PickingEnv(gym.Env):
     
     def __init__(self, connection, table, dim_cols, 
                  agg_cols, cmp_pred, nr_facts, nr_preds,
-                 degree, preamble, dims_tmp, aggs_txt,
-                 q_engine):
+                 degree, max_steps, preamble, dims_tmp, 
+                 aggs_txt, q_engine):
         """ Read database to initialize environment. 
         
         Args:
@@ -111,6 +119,7 @@ class PickingEnv(gym.Env):
             nr_facts: at most that many facts in description
             nr_preds: at most that many predicates per fact
             degree: degree for all transition graphs
+            max_steps: number of steps per episode
             preamble: starts each data summary
             dims_tmp: assigns each dimension to text template
             aggs_txt: assigns each aggregate to text snippet
@@ -125,6 +134,7 @@ class PickingEnv(gym.Env):
         self.nr_facts = nr_facts
         self.nr_preds = nr_preds
         self.degree = degree
+        self.max_steps = max_steps
         self.preamble = preamble
         self.dims_tmp = dims_tmp
         self.aggs_txt = aggs_txt
@@ -144,7 +154,7 @@ class PickingEnv(gym.Env):
         self.text_to_reward = {}
 
         self.props_per_fact = nr_preds + 1
-        action_dims = [nr_facts + 1, self.props_per_fact, degree]
+        action_dims = [nr_facts, self.props_per_fact, degree]
         self.action_space = spaces.MultiDiscrete(action_dims)
         
         self.nr_props = nr_facts * self.props_per_fact
@@ -176,15 +186,20 @@ class PickingEnv(gym.Env):
         """ Change fact or trigger evaluation. """
         self.nr_steps += 1
         
-        if self.nr_steps >= 100 or action[0] >= self.nr_facts:
+        if self.nr_steps >= self.max_steps:
             done = True
             reward = self._evaluate()
         else:
             fact_idx = action[0]
             prop_idx = action[1]
-            new_val = action[2]
+            nb_idx = action[2]
+            fact = self.cur_facts[fact_idx]
+            cur_val = fact.get_prop(prop_idx)
+            if fact.is_agg(prop_idx):
+                new_val = self.agg_graph.get_neighbor(cur_val, nb_idx).item()
+            else:
+                new_val = self.pred_graph.get_neighbor(cur_val, nb_idx).item()
             self.cur_facts[fact_idx].change(prop_idx, new_val)
-            
             done = False
             reward = 0
         
@@ -212,20 +227,22 @@ class PickingEnv(gym.Env):
     def _evaluate(self):
         """ Evaluate quality of current summary. """
         text = self._generate()
-        
-        if text in self.text_to_reward:
-            reward = self.text_to_reward[text]
+        if text is None:
+            reward = -10
         else:
-            sent = self.judge(text)[0]
-            label = sent['label']
-            score = sent['score']
-            if label == 'POSITIVE':
-                reward = score
+            if text in self.text_to_reward:
+                reward = self.text_to_reward[text]
             else:
-                reward = -score
-            self.text_to_reward[text] = reward
-
-        print(f'Reward {reward} for "{text}"')
+                sent = self.judge(text)[0]
+                label = sent['label']
+                score = sent['score']
+                if label == 'POSITIVE':
+                    reward = score
+                else:
+                    reward = -score
+                self.text_to_reward[text] = reward
+    
+            print(f'Reward {reward} for "{text}"')
         return reward
     
     def _fact_txt(self, fact):
@@ -249,6 +266,9 @@ class PickingEnv(gym.Env):
         agg_idx = fact.get_agg()
         agg_col = self.agg_cols[agg_idx]
         rel_avg = self.q_engine.rel_avg(preds, agg_col)
+        if rel_avg is None:
+            return None
+
         percent = int(rel_avg * 100)
         percent_d = percent - 100
         if percent_d != 0:
@@ -269,7 +289,9 @@ class PickingEnv(gym.Env):
                 f_txt = self.fact_to_text[f_id]                
             else:
                 f_txt = self._fact_txt(fact)
-                self.fact_to_text[f_id] = f_txt
+                self.fact_to_text[f_id] = f_txt            
+            if f_txt is None:
+                return None
             s_parts.append(f_txt)
         
         return ' '.join(s_parts)
@@ -301,7 +323,7 @@ class PickingEnv(gym.Env):
             print(f'Generating predicates for dimension {dim} ...')
             with self.connection.cursor() as cursor:
                 query = f'select distinct {dim} from {self.table} ' \
-                    f'where {self.cmp_pred}'
+                    f'where {self.cmp_pred} and {dim} is not null'
                 cursor.execute(query)
                 result = cursor.fetchall()
                 preds += [(dim, r[0]) for r in result]

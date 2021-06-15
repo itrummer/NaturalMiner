@@ -37,8 +37,11 @@ class QueryEngine():
         entity_avg = self.avg(eq_preds, self.cmp_pred, agg_col)
         general_avg = self.avg(eq_preds, 'true', agg_col)
         
-        f_gen_avg = max(0.0001, float(general_avg))
-        return float(entity_avg) / f_gen_avg
+        if entity_avg is None:
+            return None
+        else:
+            f_gen_avg = max(0.0001, float(general_avg))
+            return float(entity_avg) / f_gen_avg
     
     def avg(self, eq_preds, pred, agg_col):
         """ Calculate average over aggregation column in scope. 
