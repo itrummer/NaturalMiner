@@ -6,7 +6,7 @@ Created on Jun 6, 2021
 import cp.rl
 import psycopg2
 import stable_baselines3.common.env_checker
-from stable_baselines3 import A2C, DQN, PPO
+from stable_baselines3 import A2C, PPO
 from cp.query import QueryEngine
 
 with psycopg2.connect(

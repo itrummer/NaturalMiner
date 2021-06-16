@@ -5,7 +5,7 @@ Created on Jun 5, 2021
 '''
 from sentence_transformers import SentenceTransformer, util
 from transformers import pipeline
-import cp.query
+import cp.util
 import gym
 from gym import spaces
 import numpy as np
@@ -220,17 +220,6 @@ class PickingEnv(gym.Env):
             
         return self._observe()
     
-    def _is_pred(self, pred):
-        """ Checks if tuple represents predicate. 
-        
-        Args:
-            pred: column and associated value
-            
-        Returns:
-            true iff predicate represents condition
-        """
-        return not pred[0].startswith("'")
-    
     def _evaluate(self):
         """ Evaluate quality of current summary. """
         text = self._generate()
@@ -264,7 +253,7 @@ class PickingEnv(gym.Env):
         f_parts = [self.preamble]
         preds = [self.all_preds[i] for i in fact.get_preds()]
         for pred in preds:
-            if self._is_pred(pred):
+            if cp.util.is_pred(pred):
                 dim_idx = self.dim_cols.index(pred[0])
                 dim_tmp = self.dims_tmp[dim_idx]
                 dim_txt = dim_tmp.replace('<V>', pred[1])
