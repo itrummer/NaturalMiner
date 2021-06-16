@@ -28,8 +28,12 @@ class EmbeddingGraph():
         
         nr_labels = len(labels)
         for i in range(nr_labels):
-            _, indices = torch.topk(cosine_sims[i], degree)
-            self.neighbors.append(indices)
+            prefs = cosine_sims[i,i:nr_labels]
+            k = min(prefs.shape[0], degree)
+            _, indices = torch.topk(prefs, k)
+            l_indices = indices.tolist()
+            l_indices += [0] * (degree - k)
+            self.neighbors.append(l_indices)
 
     def get_embedding(self, node_id):
         """ Returns embedding of given node.
@@ -186,6 +190,9 @@ class PickingEnv(gym.Env):
         """ Change fact or trigger evaluation. """
         self.nr_steps += 1
         
+        # text = self._generate()
+        # print(f'Step: {self.nr_steps}; {text}')
+        
         if self.nr_steps >= self.max_steps:
             done = True
             reward = self._evaluate()
@@ -196,9 +203,9 @@ class PickingEnv(gym.Env):
             fact = self.cur_facts[fact_idx]
             cur_val = fact.get_prop(prop_idx)
             if fact.is_agg(prop_idx):
-                new_val = self.agg_graph.get_neighbor(cur_val, nb_idx).item()
+                new_val = self.agg_graph.get_neighbor(cur_val, nb_idx)
             else:
-                new_val = self.pred_graph.get_neighbor(cur_val, nb_idx).item()
+                new_val = self.pred_graph.get_neighbor(cur_val, nb_idx)
             self.cur_facts[fact_idx].change(prop_idx, new_val)
             done = False
             reward = 0

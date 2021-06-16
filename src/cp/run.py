@@ -28,7 +28,7 @@ with psycopg2.connect(
         connection, 'liquor', 
         ['city', 'countyname', 'categoryname', 'itemname'], 
         ['bottlessold', 'salevalue', 'volumesold'], 
-        cmp_pred, 1, 2, 2, 10, 'Among all stores', 
+        cmp_pred, 1, 2, 5, 20, 'Among all stores', 
         ['in <V>', 'in <V>', 'considering <V>'],
         [', the number of bottles per sale', 
          ', the dollar value per sale', 
