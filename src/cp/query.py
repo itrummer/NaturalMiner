@@ -46,49 +46,61 @@ class AggQuery():
 class AggCache():
     """ Cache of aggregate values. """
 
-    def __init__(self, connection):
+    def __init__(self, connection, miss_penalty):
         """ Initializes query cache.
         
         Args:
             connection: database connection
+            miss_penalty: penalty of cache miss
         """
         self.connection = connection
         self.prefix = 'pcache'
         self.max_cached = 100
         self.t_to_slot = {}
         self.query_log = []
-        self.clear_cache()
-
-    def clear_cache(self):
-        """ Clears all cached relations. """
-        self.next_slot = 0
-        for i in range(self.max_cached):
-            with self.connection.cursor() as cursor:
-                cache_tbl = self.prefix + str(i)
-                sql = f'drop table if exists {cache_tbl}'
-                cursor.execute(sql)
-
-    def estimate_cardinality(self, template):
-        pass
-
-    def get_result(self, query):
-        """ Retrieve result from cache. 
+        self._clear_cache()
+        self.miss_penalty = miss_penalty
+        self.no_update = 0
+    
+    def can_answer(self, query):
+        """ Checks if query can be answered using cached views. 
         
         Args:
+            query: check for result of this query
+            
+        Returns:
+            flag indicating if query can be answered from cache
+        """
+        self.query_log.append(query)
+        t = query.template()
+        views = self.t_to_slot.keys()
+        if [v for v in views if self._specializes(t, v)]:
+            return True
+        else:
+            return False
+
+    def get_result(self, view, query):
+        """ Generate query result from given view. 
+        
+        Args:
+            view: source view for generating result
             query: retrieve result for this query
             
         Returns:
             query result (a relative average)
         """
-        template = query.template()
-        slot = self.t_to_slot[template]
-        table = self.prefix + str(slot)
+        self.query_log.append(query)
+        slot_id = self.t_to_slot[view]
+        table = self._slot_table(slot_id)
         
         p_parts = [f"{c}='{v}'" for c, v in query.eq_preds]
         w_clause = ' and '.join(p_parts)
-        sql = f'select case when cmp_c = 0 or s = 0 then NULL '\
-            f'else (cmp_s/cmp_c)/(s/c) end as rel_avg ' \
-            f'from {table} where {w_clause}'
+        sql = f'with sums as (' \
+            f'select sum(c) as c, sum(s) as s, ' \
+            f'sum(cmp_c) as cmp_c, sum(cmp_s) as cmp_s ' \
+            f'from {table} where {w_clause}) ' \
+            f'select case when cmp_c = 0 or s = 0 then NULL '\
+            f'else (cmp_s/cmp_c)/(s/c) end as rel_avg from sums'
         
         with self.connection.cursor() as cursor:
             start_s = time.time()
@@ -99,20 +111,109 @@ class AggCache():
             else:
                 return cursor.fetchone()[0]
 
-    def is_cached(self, query):
-        """ Checks if result of query is cached. 
+    def update(self):
+        """ Updates cache content for maximum efficiency. """
+        self.no_update += 1
+        if self.no_update > self.update_every:
+            views = self.t_to_slot.keys()
+            candidates = self._candidate_views()
+            v_add = self._select_views(views, candidates, 3)
+            nr_kept = self.max_cached - len(v_add)
+            to_keep = self._select_views(candidates, views, nr_kept)
+            v_del = set(views).difference(to_keep)
+            
+            for v in v_del:
+                self._drop_results(v)
+            for v in v_add:
+                self._put_results(v)
+            self.query_log.clear()
+            self.no_update = 0
+
+    def _candidate_views(self):
+        """ Selects candidate templates for which to generate results. 
+        
+        Returns:
+            set of query templates representing candidates
+        """
+        t_counts = Counter()
+        for q in self.query_log:            
+            t = q.template()
+            t_counts.update(t)
+            
+        candidates = set(t_counts.most_common(10))
+        for _ in range(3):
+            expanded = set()
+            for t_1 in candidates:
+                for t_2 in candidates:
+                    t_m = self._merge_templates(t_1, t_2)
+                    expanded.add(t_m)
+            candidates.update(expanded)
+        
+        return candidates
+
+    def _clear_cache(self):
+        """ Clears all cached relations. """
+        self.next_slot = 0
+        for i in range(self.max_cached):
+            with self.connection.cursor() as cursor:
+                cache_tbl = self._slot_table(i)
+                sql = f'drop table if exists {cache_tbl}'
+                cursor.execute(sql)
+
+    def _drop_results(self, template):
+        """ Drop view for given template. 
         
         Args:
-            query: check for result of this query
+            template: drop results for this view
+        """
+        slot_id = self.t_to_slot[template]
+        slot_tbl = self._slot_table(slot_id)
+        with self.connection.cursor() as cursor:
+            cursor.execute(f'drop table if exists {slot_tbl}')
+
+    def _estimate_cardinality(self, template):
+        """ Estimate cardinality for view storing template results. 
+        
+        Args:
+            template: analyze view associated with this template
             
         Returns:
-            Boolean flag, true iff result is cached
+            estimated cardinality for view on template
         """
-        self.query_log.append(query)
-        template = query.template()
-        return True if template in self.t_to_slot else False
+        table, cols, _, _ = template
+        sql = f'explain select * from {table}'
+        if cols:
+            group_by = ', '.join(cols)
+            sql += f' group by {group_by}'
 
-    def put_results(self, template):
+        with self.connection.cursor() as cursor:
+            cursor.execute(sql)
+            res = cursor.fetchall()
+            rows = res[0][0][0]['Plan']['Plan Rows']
+            
+        return rows
+
+    def _merge_templates(self, t_1, t_2):
+        """ Merge templates into a new template.
+        
+        Args:
+            t_1: first template to merge
+            t_2: second template to merge
+            
+        Returns:
+            template combining columns if compatible, otherwise None
+        """
+        table_1, col_1, pred_1, agg_1 = t_1
+        table_2, col_2, pred_2, agg_2 = t_2
+        if table_1 == table_2 and pred_1 == pred_2 and agg_1 == agg_2:
+            merged_cols = set()
+            merged_cols.update(col_1)
+            merged_cols.update(col_2)
+            return table_1, merged_cols, pred_1, agg_1
+        else:
+            return None
+
+    def _put_results(self, template):
         """ Generates and caches results for query template.
         
         Args:
@@ -142,99 +243,84 @@ class AggCache():
         
         self.t_to_slot[template] = self.next_slot
         self.next_slot += 1
-
-    def _merge_templates(self, t_1, t_2):
-        """ Merge templates into a new template.
+        
+    def _query_cost(self, view, query):
+        """ Cost of answering given query from given view. 
         
         Args:
-            t_1: first template to merge
-            t_2: second template to merge
+            view: view used for answering query
+            query: answer this query using view
             
         Returns:
-            template combining columns if compatible, otherwise None
+            estimated cost for answering query, 'inf' if impossible
         """
-        table_1, col_1, pred_1, agg_1 = t_1
-        table_2, col_2, pred_2, agg_2 = t_2
-        if table_1 == table_2 and pred_1 == pred_2 and agg_1 == agg_2:
-            merged_cols = set()
-            merged_cols.update(col_1)
-            merged_cols.update(col_2)
-            return table_1, merged_cols, pred_1, agg_1
+        if self._specializes(query, view):
+            return self._estimate_cardinality(view)
         else:
-            return None
-
-    def _candidate_views(self):
-        """ Selects candidate templates for which to generate results. 
+            return self.miss_penalty
+    
+    def _query_log_cost(self, views):
+        """ Calculates cost of answering logged queries given views.
         
-        Returns:
-            set of query templates representing candidates
-        """
-        t_counts = Counter()
-        for q in self.query_log:            
-            t = q.template()
-            t_counts.update(t)
+        Args:
+            views: use those views to answer queries
             
-        candidates = set(t_counts.most_common(10))
-        for _ in range(3):
-            expanded = set()
-            for t_1 in candidates:
-                for t_2 in candidates:
-                    t_m = self._merge_templates(t_1, t_2)
-                    expanded.add(t_m)
-            candidates.update(expanded)
-        
-        return candidates
-
-    def _views_to_add(self, candidates):
+        Returns:
+            estimated cost for answering queries in log
+        """
+        cost = 0
+        for q in self.query_log:
+            cost += min([self._query_cost(v, q) for v in views])
+        return cost
+    
+    def _select_views(self, given, candidates, k):
         """ Select most interesting views to add.
         
         Args:
+            given: those views are available
             candidates: select among those views
+            k: select so many views greedily
             
         Returns:
-            best views to add
+            near-optimal views to add
         """
-        pass
+        selected = []
+        for _ in range(k):
+            available = given + selected
+            c = {v:self._query_log_cost(available + [v]) for v in candidates}
+            v = min(c, key=c.get)
+            selected.append(v)
+        return set(selected)
     
-    def _views_to_delete(self, to_add):
-        """ Select least interesting views to delete. 
+    def _slot_table(self, slot_id):
+        """ Returns name of table storing slot content. 
         
         Args:
-            to_add: views to add
+            slot_id: slot number
             
         Returns:
-            best views to delete
+            name of table storing cache slot
         """
-        pass
+        return self.prefix + str(slot_id)
     
-    def _order_updates(self, to_add, to_delete):
-        """ Order additions and deletions to minimize cost. 
+    def _specializes(self, t_1, t_2):
+        """ Determines if first template specializes second. 
         
         Args:
-            to_add: views to be added
-            to_delete: views to be deleted
+            t_1: check if this template specializes the other
+            t_2: check if this template generalizes the other
             
         Returns:
-            list of plan steps (action-template pairs)
+            true iff the first template specializes the second
         """
-        pass
+        table_1, cols_1, pred_1, agg_1 = t_1
+        table_2, cols_2, pred_2, agg_2 = t_2
+        if table_1 == table_2 and pred_1 == pred_2 and \
+            agg_1 == agg_2 and cols_1.isSubsetOf(cols_2):
+            return True
+        else:
+            return False
 
-    def _execute_plan(self, plan):
-        """ Execute a plan to update cache.
-        
-        Args:
-            plan: list of plan steps (action-template pairs)
-        """
-        pass
-
-    def update(self):
-        """ Updates cache content for maximum efficiency. """
-        candidates = self._candidate_views()
-        v_add = self._views_to_add(candidates)
-        v_del = self._views_to_delete(v_add)
-        plan = self._order_updates(v_add, v_del)
-        self._execute_plan(plan)
-        self.query_log.clear()
 
 class QueryEngine():
     """ Processes queries distinguishing entities from others. """
@@ -254,9 +340,10 @@ class QueryEngine():
         self.dbpwd = dbpwd
         self.table = table
         self.cmp_pred = cmp_pred
-        self.connection = psycopg2.connect(database=dbname, user=dbuser, password=dbpwd)
+        self.connection = psycopg2.connect(
+            database=dbname, user=dbuser, password=dbpwd)
         self.connection.autocommit = True
-        self.q_cache = AggCache(self.connection)
+        self.q_cache = AggCache(self.connection, 19666763)
         
     def avg(self, eq_preds, pred, agg_col):
         """ Calculate average over aggregation column in scope. 
@@ -294,18 +381,18 @@ class QueryEngine():
         Returns:
             Ratio of entity to general average
         """
-        query = AggQuery(self.table, eq_preds, self.cmp_pred, agg_col)
-        if not self.q_cache.is_cached(query):
-            template = query.template()
-            self.q_cache.put_results(template)
+        self.q_cache.update()
+        query = AggQuery(self.table, eq_preds, 
+                         self.cmp_pred, agg_col)
         
-        return self.q_cache.get_result(query)
+        if self.q_cache.can_answer(query):
+            return self.q_cache.get_result(query)
         
-        # entity_avg = self.avg(eq_preds, self.cmp_pred, agg_col)
-        # general_avg = self.avg(eq_preds, 'true', agg_col)
-        #
-        # if entity_avg is None:
-            # return None
-        # else:
-            # f_gen_avg = max(0.0001, float(general_avg))
-            # return float(entity_avg) / f_gen_avg
+        else:
+            entity_avg = self.avg(eq_preds, self.cmp_pred, agg_col)
+            general_avg = self.avg(eq_preds, 'true', agg_col)
+            if entity_avg is None:
+                return None
+            else:
+                f_gen_avg = max(0.0001, float(general_avg))
+                return float(entity_avg) / f_gen_avg
