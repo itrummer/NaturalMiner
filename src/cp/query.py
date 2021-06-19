@@ -164,7 +164,6 @@ class AggCache():
 
     def _clear_cache(self):
         """ Clears all cached relations. """
-        self.next_slot = 0
         for i in range(self.max_cached):
             with self.connection.cursor() as cursor:
                 cache_tbl = self._slot_table(i)
@@ -223,14 +222,23 @@ class AggCache():
         else:
             return None
 
+    def _next_slot(self):
+        """ Selects next free slot in cache.
+        
+        Returns:
+            lowest slot ID that is available (exception if none)
+        """
+        return min(set(range(self.max_cached)) - self.t_to_slot.values())
+
     def _put_results(self, template):
         """ Generates and caches results for query template.
         
         Args:
             template: query template for which to store results
         """
+        slot_id = self._next_slot()
         table, pred_cols, cmp_pred, agg_col = template
-        cache_tbl = self.prefix + str(self.next_slot)
+        cache_tbl = self._slot_table(slot_id)
         q_parts = [f'create unlogged table {cache_tbl} as (']
         
         s_parts = [f'select sum({agg_col}) as s, count(*) as c']
@@ -251,8 +259,7 @@ class AggCache():
             cursor.execute(sql)
             print(f'Put time: {time.time() - start_s} seconds')
         
-        self.t_to_slot[template] = self.next_slot
-        self.next_slot += 1
+        self.t_to_slot[template] = slot_id
         
     def _query_cost(self, view, query):
         """ Cost of answering given query from given view. 
