@@ -46,7 +46,7 @@ class AggQuery():
 class AggCache():
     """ Cache of aggregate values. """
 
-    def __init__(self, connection, miss_penalty):
+    def __init__(self, connection, miss_penalty, update_every):
         """ Initializes query cache.
         
         Args:
@@ -54,12 +54,13 @@ class AggCache():
             miss_penalty: penalty of cache miss
         """
         self.connection = connection
+        self.miss_penalty = miss_penalty
+        self.update_every = update_every
         self.prefix = 'pcache'
         self.max_cached = 100
         self.t_to_slot = {}
         self.query_log = []
         self._clear_cache()
-        self.miss_penalty = miss_penalty
         self.no_update = 0
     
     def can_answer(self, query):
@@ -79,17 +80,26 @@ class AggCache():
         else:
             return False
 
-    def get_result(self, view, query):
-        """ Generate query result from given view. 
+    def get_result(self, query):
+        """ Generate query result from a view. 
         
         Args:
-            view: source view for generating result
             query: retrieve result for this query
             
         Returns:
             query result (a relative average)
         """
         self.query_log.append(query)
+        
+        q_views = []
+        t = query.template()
+        for v in self.t_to_slot.keys():
+            if self._specializes(t, v):
+                q_views.append(v)
+                
+        v_cards = {v:self._estimate_cardinality(v) for v in q_views}
+        view = min(v_cards, key=v_cards.get)
+            
         slot_id = self.t_to_slot[view]
         table = self._slot_table(slot_id)
         
@@ -115,8 +125,8 @@ class AggCache():
         """ Updates cache content for maximum efficiency. """
         self.no_update += 1
         if self.no_update > self.update_every:
-            views = self.t_to_slot.keys()
-            candidates = self._candidate_views()
+            views = list(self.t_to_slot.keys())
+            candidates = list(self._candidate_views())
             v_add = self._select_views(views, candidates, 3)
             nr_kept = self.max_cached - len(v_add)
             to_keep = self._select_views(candidates, views, nr_kept)
@@ -138,15 +148,16 @@ class AggCache():
         t_counts = Counter()
         for q in self.query_log:            
             t = q.template()
-            t_counts.update(t)
+            t_counts.update([t])
             
-        candidates = set(t_counts.most_common(10))
+        candidates = set([c[0] for c in t_counts.most_common(10)])
         for _ in range(3):
             expanded = set()
             for t_1 in candidates:
                 for t_2 in candidates:
                     t_m = self._merge_templates(t_1, t_2)
-                    expanded.add(t_m)
+                    if t_m:
+                        expanded.add(t_m)
             candidates.update(expanded)
         
         return candidates
@@ -170,6 +181,7 @@ class AggCache():
         slot_tbl = self._slot_table(slot_id)
         with self.connection.cursor() as cursor:
             cursor.execute(f'drop table if exists {slot_tbl}')
+        del self.t_to_slot[template]
 
     def _estimate_cardinality(self, template):
         """ Estimate cardinality for view storing template results. 
@@ -181,7 +193,7 @@ class AggCache():
             estimated cardinality for view on template
         """
         table, cols, _, _ = template
-        sql = f'explain select * from {table}'
+        sql = f'explain (format json) select 1 from {table}'
         if cols:
             group_by = ', '.join(cols)
             sql += f' group by {group_by}'
@@ -206,9 +218,7 @@ class AggCache():
         table_1, col_1, pred_1, agg_1 = t_1
         table_2, col_2, pred_2, agg_2 = t_2
         if table_1 == table_2 and pred_1 == pred_2 and agg_1 == agg_2:
-            merged_cols = set()
-            merged_cols.update(col_1)
-            merged_cols.update(col_2)
+            merged_cols = col_1.union(col_2)
             return table_1, merged_cols, pred_1, agg_1
         else:
             return None
@@ -254,7 +264,7 @@ class AggCache():
         Returns:
             estimated cost for answering query, 'inf' if impossible
         """
-        if self._specializes(query, view):
+        if self._specializes(query.template(), view):
             return self._estimate_cardinality(view)
         else:
             return self.miss_penalty
@@ -285,7 +295,8 @@ class AggCache():
             near-optimal views to add
         """
         selected = []
-        for _ in range(k):
+        nr_to_add = min(k, len(candidates))
+        for _ in range(nr_to_add):
             available = given + selected
             c = {v:self._query_log_cost(available + [v]) for v in candidates}
             v = min(c, key=c.get)
@@ -316,7 +327,7 @@ class AggCache():
         table_1, cols_1, pred_1, agg_1 = t_1
         table_2, cols_2, pred_2, agg_2 = t_2
         if table_1 == table_2 and pred_1 == pred_2 and \
-            agg_1 == agg_2 and cols_1.isSubsetOf(cols_2):
+            agg_1 == agg_2 and cols_1.issubset(cols_2):
             return True
         else:
             return False
@@ -343,7 +354,7 @@ class QueryEngine():
         self.connection = psycopg2.connect(
             database=dbname, user=dbuser, password=dbpwd)
         self.connection.autocommit = True
-        self.q_cache = AggCache(self.connection, 19666763)
+        self.q_cache = AggCache(self.connection, 19666763, 2)
         
     def avg(self, eq_preds, pred, agg_col):
         """ Calculate average over aggregation column in scope. 
