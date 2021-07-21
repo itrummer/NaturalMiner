@@ -228,7 +228,7 @@ class AggCache():
         Returns:
             lowest slot ID that is available (exception if none)
         """
-        return min(set(range(self.max_cached)) - self.t_to_slot.values())
+        return min(set(range(self.max_cached)) - set(self.t_to_slot.values()))
 
     def _put_results(self, template):
         """ Generates and caches results for query template.
@@ -361,7 +361,7 @@ class QueryEngine():
         self.connection = psycopg2.connect(
             database=dbname, user=dbuser, password=dbpwd)
         self.connection.autocommit = True
-        self.q_cache = AggCache(self.connection, 19666763, 2)
+        self.q_cache = AggCache(self.connection, 19666763, 20)
         
     def avg(self, eq_preds, pred, agg_col):
         """ Calculate average over aggregation column in scope. 
