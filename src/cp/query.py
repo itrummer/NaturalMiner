@@ -4,7 +4,7 @@ Created on Jun 5, 2021
 @author: immanueltrummer
 '''
 from collections import Counter
-from cp.util import is_pred
+from cp.pred import is_pred
 import psycopg2
 import time
 

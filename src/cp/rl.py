@@ -3,11 +3,12 @@ Created on Jun 5, 2021
 
 @author: immanueltrummer
 '''
+from cp.fact import Fact, fact_txt
+from cp.pred import all_preds
+from gym import spaces
 from sentence_transformers import SentenceTransformer, util
 from transformers import pipeline
-import cp.util
 import gym
-from gym import spaces
 import numpy as np
 import torch
 
@@ -59,52 +60,6 @@ class EmbeddingGraph():
         return self.neighbors[node][n_id]
 
 
-class Fact():
-    """ Represents one fact in a data summary. """
-    
-    def __init__(self, nr_preds):
-        """ Initialize fact for given number of predicates. 
-        
-        Args:
-            nr_preds: (maximal) number of scope predicates
-        """
-        self.nr_preds = nr_preds
-        self.nr_props = nr_preds + 1
-
-    def change(self, prop_id, new_val):
-        """ Change fact property to new value. 
-
-        Args:
-            prop_id: change value of this property
-            new_val: assign property to this value
-        """
-        self.props[prop_id] = new_val
-        
-    def get_agg(self):
-        """ Returns index of aggregate. """
-        return self.props[self.nr_preds]
-    
-    def get_id(self):
-        """ Returns ID string. """
-        return "_".join([str(p) for p in self.props])
-    
-    def get_preds(self):
-        """ Returns fact predicates (indices). """
-        return self.props[0:self.nr_preds]
-    
-    def get_prop(self, prop_id):
-        """ Returns current value for property. """
-        return self.props[prop_id]
-    
-    def is_agg(self, prop_id):
-        """ Returns true iff property represents aggregate. """
-        return True if prop_id == self.nr_preds else False
-    
-    def reset(self):
-        """ Reset properties to default values. """
-        self.props = [0] * self.nr_props
-
-
 class PickingEnv(gym.Env):
     """ Environment for selecting facts for a data summary. """
     
@@ -147,7 +102,7 @@ class PickingEnv(gym.Env):
                               model="siebert/sentiment-roberta-large-english")
         
         self.agg_graph = EmbeddingGraph(agg_cols, degree)
-        self.all_preds = self._preds()
+        self.all_preds = all_preds(connection, table, dim_cols, cmp_pred)
         pred_labels = [f'{p} is {v}' for p, v in self.all_preds]
         self.pred_graph = EmbeddingGraph(pred_labels, degree)
 
@@ -185,7 +140,7 @@ class PickingEnv(gym.Env):
             return sorted_sums
         else:
             return sorted_sums[0:k]
-    
+
     def step(self, action):
         """ Change fact or trigger evaluation. """
         self.nr_steps += 1
@@ -241,50 +196,19 @@ class PickingEnv(gym.Env):
             print(f'Reward {reward} for "{text}"')
         return reward
     
-    def _fact_txt(self, fact):
-        """ Generate text describing fact. 
-        
-        Args:
-            fact: a fact to describe
-            
-        Returns:
-            text description of fact
-        """
-        f_parts = [self.preamble]
-        preds = [self.all_preds[i] for i in fact.get_preds()]
-        for pred in preds:
-            if cp.util.is_pred(pred):
-                dim_idx = self.dim_cols.index(pred[0])
-                dim_tmp = self.dims_tmp[dim_idx]
-                dim_txt = dim_tmp.replace('<V>', pred[1])
-                f_parts.append(dim_txt)
-            
-        agg_idx = fact.get_agg()
-        agg_col = self.agg_cols[agg_idx]
-        rel_avg = self.q_engine.rel_avg(preds, agg_col)
-        if rel_avg is None:
-            return None
-
-        percent = int(rel_avg * 100)
-        percent_d = percent - 100
-        if percent_d != 0:
-            cmp_text = f'{abs(percent_d)}% '
-            cmp_text += 'higher ' if percent_d > 0 else 'lower '
-            cmp_text += 'than average'
-        else:
-            cmp_text = 'about average'                
-        f_parts.append(f'{self.aggs_txt[agg_idx]} is {cmp_text}.')
-        return ' '.join(f_parts).replace('_', ' ').replace('  ', ' ')
-    
     def _generate(self):
         """ Generate textual data summary. """
         s_parts = []
         for fact in self.cur_facts:
             f_id = fact.get_id()
             if f_id in self.fact_to_text:
-                f_txt = self.fact_to_text[f_id]                
+                f_txt = self.fact_to_text[f_id]
             else:
-                f_txt = self._fact_txt(fact)
+                f_txt = fact_txt(
+                    fact, preamble=self.preamble, dim_cols=self.dim_cols, 
+                    all_preds=self.all_preds, dims_tmp=self.dims_tmp, 
+                    agg_cols=self.agg_cols, q_engine=self.q_engine, 
+                    aggs_txt=self.aggs_txt)
                 self.fact_to_text[f_id] = f_txt            
             if f_txt is None:
                 return None
@@ -307,20 +231,3 @@ class PickingEnv(gym.Env):
             components.append(agg_emb)
         
         return torch.stack(components, dim=0).numpy()
-        
-    def _preds(self):
-        """ Generates all possible equality predicates. 
-        
-        Returns:
-            list of (column, value) pairs representing predicates
-        """
-        preds = [("'any'", 'any')]
-        for dim in self.dim_cols:
-            print(f'Generating predicates for dimension {dim} ...')
-            with self.connection.cursor() as cursor:
-                query = f'select distinct {dim} from {self.table} ' \
-                    f'where {self.cmp_pred} and {dim} is not null'
-                cursor.execute(query)
-                result = cursor.fetchall()
-                preds += [(dim, r[0]) for r in result]
-        return preds
