@@ -17,13 +17,13 @@ scenarios = [
             },
         'instances':{
             'keycol':'laptop_name', 
-            'entities':['"Swift 3 SF314-54G-87HB"', '"XPS 15 9570"', '"Swift 1 SF114-32-C4GB"']
+            'entities':["'Swift 3 SF314-54G-87HB'", "'XPS 15 9570'", "'Swift 1 SF114-32-C4GB'"]
             }
     },
     {
         'general':{
             'table':'liquor', 
-            'dim_cols':['city', 'countyname', 'categoryname', 'itemname'], 
+            'dim_cols':['city', 'countyname', 'categoryname'], 
             'agg_cols':['bottlessold', 'salevalue', 'volumesold'], 
             'nr_facts':1, 'nr_preds':2, 'degree':5, 'max_steps':20, 
             'preamble':'Among all stores', 
@@ -33,7 +33,7 @@ scenarios = [
             },
         'instances':{
             'keycol':'itemname', 
-            'entities':['"Barr Hill Gin"', '"Effen Vodka Cubs Edition"', '"Bacardi 151 Rum"']
+            'entities':["'Barr Hill Gin'", "'Effen Vodka Cubs Edition'", "'Bacardi 151 Rum'"]
             }
     },
     {
@@ -73,3 +73,25 @@ scenarios = [
             }
     }
 ]
+
+def generate_testcases():
+    """ Generates test cases for cherry-picking. 
+    
+    Returns:
+        list of batches of test cases on same data
+    """
+    test_batches = []
+    for s in scenarios:
+        general = s['general']
+        instances = s['instances']
+        keycol = instances['keycol']
+        
+        test_cases = []
+        test_batches.append(test_cases)
+        for e in instances['entities']:
+            cmp_pred = f'{keycol}={e}'
+            test_case = general.copy()
+            test_case['cmp_pred'] = cmp_pred
+            test_cases.append(test_case)
+        
+    return test_batches

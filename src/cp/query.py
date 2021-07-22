@@ -343,23 +343,17 @@ class AggCache():
 class QueryEngine():
     """ Processes queries distinguishing entities from others. """
     
-    def __init__(self, dbname, dbuser, dbpwd, table, cmp_pred):
+    def __init__(self, connection, table, cmp_pred):
         """ Initialize query engine for specific connection.
         
         Args:
-            dbname: name of database to query
-            dbuser: database user name
-            dbpwd: database login password
+            connection: connection to database
             table: queries refer to this table
             cmp_pred: use for comparisons
         """
-        self.dbname = dbname
-        self.dbuser = dbuser
-        self.dbpwd = dbpwd
+        self.connection = connection
         self.table = table
         self.cmp_pred = cmp_pred
-        self.connection = psycopg2.connect(
-            database=dbname, user=dbuser, password=dbpwd)
         self.connection.autocommit = True
         self.q_cache = AggCache(self.connection, 19666763, 20)
         
@@ -379,13 +373,10 @@ class QueryEngine():
         q_parts += [pred]
         query = ' AND '.join(q_parts)
         
-        with psycopg2.connect(dbname=self.dbname, 
-                              user=self.dbuser, 
-                              password=self.dbpwd) as connection:
-            with connection.cursor() as cursor:
-                print(f'About to execute query {query}')
-                cursor.execute(query)
-                avg = cursor.fetchone()[0]
+        with self.connection.cursor() as cursor:
+            print(f'About to execute query {query}')
+            cursor.execute(query)
+            avg = cursor.fetchone()[0]
             
         return avg
     

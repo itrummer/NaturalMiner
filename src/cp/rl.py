@@ -4,13 +4,15 @@ Created on Jun 5, 2021
 @author: immanueltrummer
 '''
 from cp.fact import Fact, fact_txt
-from cp.pred import all_preds
+from cp.query import QueryEngine
 from gym import spaces
 from sentence_transformers import SentenceTransformer, util
 from transformers import pipeline
 import gym
 import numpy as np
+import time
 import torch
+from cp.sum import SumGenerator, SumEvaluator
 
 class EmbeddingGraph():
     """ Graph connecting nodes with similar label embeddings. """
@@ -66,7 +68,7 @@ class PickingEnv(gym.Env):
     def __init__(self, connection, table, dim_cols, 
                  agg_cols, cmp_pred, nr_facts, nr_preds,
                  degree, max_steps, preamble, dims_tmp, 
-                 aggs_txt, q_engine):
+                 aggs_txt, all_preds):
         """ Read database to initialize environment. 
         
         Args:
@@ -82,7 +84,7 @@ class PickingEnv(gym.Env):
             preamble: starts each data summary
             dims_tmp: assigns each dimension to text template
             aggs_txt: assigns each aggregate to text snippet
-            q_engine: issues queries to database
+            all_preds: all possible predicates
         """
         super(PickingEnv, self).__init__()
         self.connection = connection
@@ -97,20 +99,22 @@ class PickingEnv(gym.Env):
         self.preamble = preamble
         self.dims_tmp = dims_tmp
         self.aggs_txt = aggs_txt
-        self.q_engine = q_engine
-        self.judge = pipeline("sentiment-analysis", 
-                              model="siebert/sentiment-roberta-large-english")
+        self.q_engine = QueryEngine(
+            connection, table, cmp_pred)
+        self.s_gen = SumGenerator(
+            all_preds, preamble, dim_cols, 
+            dims_tmp, agg_cols, aggs_txt, 
+            self.q_engine)
+        self.s_eval = SumEvaluator()
         
         self.agg_graph = EmbeddingGraph(agg_cols, degree)
-        self.all_preds = all_preds(connection, table, dim_cols, cmp_pred)
+        self.all_preds = all_preds
         pred_labels = [f'{p} is {v}' for p, v in self.all_preds]
         self.pred_graph = EmbeddingGraph(pred_labels, degree)
 
         self.cur_facts = []
         for _ in range(nr_facts):
             self.cur_facts.append(Fact(nr_preds))
-        self.fact_to_text = {}
-        self.text_to_reward = {}
 
         self.props_per_fact = nr_preds + 1
         action_dims = [nr_facts, self.props_per_fact, degree]
@@ -119,6 +123,10 @@ class PickingEnv(gym.Env):
         self.nr_props = nr_facts * self.props_per_fact
         self.observation_space = spaces.Box(
             low=-10, high=10, shape=(self.nr_props, 384), dtype=np.float32)
+        
+        self.eval_s = 0
+        self.reset()
+        self._evaluate()
     
     def best_summary(self):
         """ Returns data summary with highest reward. """
@@ -175,47 +183,21 @@ class PickingEnv(gym.Env):
             
         return self._observe()
     
+    def statistics(self):
+        """ Returns performance statistics. 
+        
+        Returns:
+            Dictionary with performance statistics
+        """
+        stats = self.s_gen.statistics().copy()
+        stats.update(self.s_eval.statistics())
+        return stats
+    
     def _evaluate(self):
         """ Evaluate quality of current summary. """
-        text = self._generate()
-        if text is None:
-            reward = -10
-        else:
-            if text in self.text_to_reward:
-                reward = self.text_to_reward[text]
-            else:
-                sent = self.judge(text)[0]
-                label = sent['label']
-                score = sent['score']
-                if label == 'POSITIVE':
-                    reward = score
-                else:
-                    reward = -score
-                self.text_to_reward[text] = reward
-    
-            print(f'Reward {reward} for "{text}"')
-        return reward
-    
-    def _generate(self):
-        """ Generate textual data summary. """
-        s_parts = []
-        for fact in self.cur_facts:
-            f_id = fact.get_id()
-            if f_id in self.fact_to_text:
-                f_txt = self.fact_to_text[f_id]
-            else:
-                f_txt = fact_txt(
-                    fact, preamble=self.preamble, dim_cols=self.dim_cols, 
-                    all_preds=self.all_preds, dims_tmp=self.dims_tmp, 
-                    agg_cols=self.agg_cols, q_engine=self.q_engine, 
-                    aggs_txt=self.aggs_txt)
-                self.fact_to_text[f_id] = f_txt            
-            if f_txt is None:
-                return None
-            s_parts.append(f_txt)
-        
-        return ' '.join(s_parts)
-        
+        text = self.s_gen.generate(self.cur_facts)
+        return self.s_eval.evaluate(text)
+            
     def _observe(self):
         """ Returns observations for learning agent. """
         components = []

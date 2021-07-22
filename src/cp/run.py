@@ -3,55 +3,20 @@ Created on Jun 6, 2021
 
 @author: immanueltrummer
 '''
+import cp.bench
 import cp.rl
 import psycopg2
-import stable_baselines3.common.env_checker
 import time
-from stable_baselines3 import A2C, PPO
-from cp.query import QueryEngine
 
-def run_main(test_case):
-    """ Benchmarks primary method on test case.
+from stable_baselines3 import A2C, PPO
+from cp.pred import all_preds
+
+def print_details(env):
+    """ Prints details about RL results.
     
     Args:
-        test_case: describes test case
-        
-    Returns:
-        best, run time, pure processing, quality
+        env: extract info from this environment
     """
-    pass
-
-with psycopg2.connect(
-    database='picker', user='immanueltrummer') as connection:
-    connection.autocommit = True
-    
-    # From URL: https://www.kaggle.com/tylerx/melbourne-airbnb-open-data?select=listings_summary_dec18.csv
-    cmp_pred = 'id = 21610859'
-    q_engine = QueryEngine('picker', 'immanueltrummer', '', 'melbournedec18', cmp_pred)
-    env = cp.rl.PickingEnv(
-        connection=connection, table='melbournedec18', 
-        dim_cols=['host_name', 'neighbourhood', 'neighbourhood_group', 'room_type'],
-        agg_cols=['price', 'minimum_nights', 'number_of_reviews', 'reviews_per_month',
-                  'calculated_host_listings_count', 'availability_365'],
-        cmp_pred=cmp_pred, nr_facts=1, nr_preds=2, degree=5, max_steps=20,
-        preamble='Among all apartments, ', 
-        dims_tmp=['hosted by <V>', 'in <V>', 'in <V>', 'of type <V>'],
-        aggs_txt=[', the price', ', the minimum stay', ', the number of reviews',
-                  ', the reviews per month', ', the number of listings by the same host',
-                  ', the number of available days over the year'],
-        q_engine=q_engine)
-
-    stable_baselines3.common.env_checker.check_env(env)
-    model = A2C(
-        'MlpPolicy', env, verbose=True, 
-        gamma=1.0, normalize_advantage=True)
-    #model = PPO('MlpPolicy', env, gamma=1.0)
-    
-    start_s = time.time()
-    model.learn(total_timesteps=10000)
-    total_s = time.time() - start_s
-    print(f'Optimization took {total_s} seconds')
-    
     best_summary = env.best_summary()
     print(f'Best summary: "{best_summary}"')
     for best in [True, False]:
@@ -63,3 +28,83 @@ with psycopg2.connect(
     print('Facts generated:')
     for f in env.fact_to_text.values():
         print(f'{f}')
+
+
+def run_rl(connection, test_case, all_preds):
+    """ Benchmarks primary method on test case.
+    
+    Args:
+        connection: connection to database
+        test_case: describes test case
+        all_preds: ordered predicates
+        
+    Returns:
+        summaries with reward, performance statistics
+    """
+    start_s = time.time()
+    env = cp.rl.PickingEnv(connection, **test_case, all_preds=all_preds)
+    model = A2C(
+        'MlpPolicy', env, verbose=True, 
+        gamma=1.0, normalize_advantage=True)
+    model.learn(total_timesteps=30) # 10000
+    total_s = time.time() - start_s
+    print(f'Optimization took {total_s} seconds')
+    
+    p_stats = {'time':total_s}
+    p_stats.update(env.statistics())
+    
+    return env.s_eval.text_to_reward, p_stats
+
+
+def log_line(outfile, b_id, t_id, m_id, sums, p_stats):
+    """ Writes one line to log file.
+    
+    Args:
+        outfile: pointer to output file
+        b_id: batch ID
+        t_id: test case ID
+        m_id: method identifier
+        sums: maps summaries to rewards
+        p_stats: performance statistics
+    """
+    sorted_sums = sorted(sums.items(), key=lambda s: s[1])
+    b_sum = sorted_sums[-1]
+    w_sum = sorted_sums[0]
+    
+    e_time = p_stats['evaluation_time']
+    time = p_stats['time']
+    hitrate = 0
+
+    outfile.write(f'{b_id}\t{t_id}\t{m_id}\t' \
+                  f'{b_sum[0]}\t{b_sum[1]}\t{w_sum[0]}\t{w_sum[1]}\t' \
+                  f'{time}\t{e_time}\t{hitrate}\n')
+    outfile.flush()
+
+
+def main():
+    db = 'picker'
+    user = 'immanueltrummer'
+    outpath = 'cpout.tsv'
+    
+    with open(outpath, 'w') as file:
+        file.write('scenario\ttestcase\tapproach\t' \
+                   'best\tbquality\tworst\twquality\t'\
+                   'time\tetime\thitrate\n')
+        with psycopg2.connect(database=db, user=user) as connection:
+            connection.autocommit = True
+            
+            test_batches = cp.bench.generate_testcases()
+            for b_id, b in enumerate(test_batches):
+                for t_id, t in enumerate(b):
+                    
+                    print(f'Next up: {b_id}/{t_id}')
+                    all_preds = cp.pred.all_preds(
+                        connection, t['table'], 
+                        t['dim_cols'], t['cmp_pred'])
+                    
+                    sums, p_stats = run_rl(connection, t, all_preds)
+                    log_line(file, b_id, t_id, 'rl', sums, p_stats)
+
+
+if __name__ == '__main__':
+    main()
