@@ -4,6 +4,7 @@ Created on Jul 21, 2021
 @author: immanueltrummer
 '''
 from cp.pred import is_pred
+import random
 
 class Fact():
     """ Represents one fact in a data summary. """
@@ -45,6 +46,18 @@ class Fact():
     def is_agg(self, prop_id):
         """ Returns true iff property represents aggregate. """
         return True if prop_id == self.nr_preds else False
+    
+    def random_init(self, pred_cnt, agg_cnt):
+        """ Initializes fact randomly.
+        
+        Args:
+            pred_cnt: number of possible predicates
+            agg_cnt: number of possible aggregates
+        """
+        self.reset()
+        for prop_id in range(self.nr_props):
+            ub = agg_cnt if self.is_agg(prop_id) else pred_cnt
+            self.props[prop_id] = random.randint(0, ub-1)
     
     def reset(self):
         """ Reset properties to default values. """

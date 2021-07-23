@@ -3,6 +3,7 @@ Created on Jun 6, 2021
 
 @author: immanueltrummer
 '''
+import cp.base
 import cp.bench
 import cp.rl
 import psycopg2
@@ -56,6 +57,24 @@ def run_rl(connection, test_case, all_preds):
     return env.s_eval.text_to_reward, p_stats
 
 
+def run_random(connection, test_case, all_preds, nr_sums, timeout_s):
+    """ Run simple random generation baseline.
+    
+    Args:
+        connection: connection to database
+        test_case: summarize for this test case
+        all_preds: all available predicates
+        nr_sums: generate so many summaries
+        timeout_s: sample until this timeout
+        
+    Returns:
+        summaries with quality, performance statistics
+    """
+    return cp.base.rand_sums(
+        nr_sums=nr_sums, timeout_s=timeout_s, 
+        connection=connection, all_preds=all_preds,
+        **test_case)
+
 def log_line(outfile, b_id, t_id, m_id, sums, p_stats):
     """ Writes one line to log file.
     
@@ -104,7 +123,15 @@ def main():
                     
                     sums, p_stats = run_rl(connection, t, all_preds)
                     log_line(file, b_id, t_id, 'rl', sums, p_stats)
-
+                    timeout_s = p_stats['time']
+                    
+                    sums, p_stats = run_random(
+                        connection, t, all_preds, 1, float('inf'))
+                    log_line(file, b_id, t_id, 'rand1', sums, p_stats)
+                    
+                    sums, p_stats = run_random(
+                        connection, t, all_preds, float('inf'), timeout_s)
+                    log_line(file, b_id, t_id, 'rand', sums, p_stats)
 
 if __name__ == '__main__':
     main()
