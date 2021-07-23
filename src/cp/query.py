@@ -4,7 +4,7 @@ Created on Jun 5, 2021
 @author: immanueltrummer
 '''
 from collections import Counter
-from cp.pred import is_pred
+from cp.pred import is_pred, pred_sql
 import psycopg2
 import time
 
@@ -46,22 +46,24 @@ class AggQuery():
 class AggCache():
     """ Cache of aggregate values. """
 
-    def __init__(self, connection, miss_penalty, update_every):
+    def __init__(self, connection, src_table, update_every):
         """ Initializes query cache.
         
         Args:
             connection: database connection
-            miss_penalty: penalty of cache miss
+            src_table: source of cached data
+            update_every: wait between cache updates
         """
         self.connection = connection
-        self.miss_penalty = miss_penalty
         self.update_every = update_every
         self.prefix = 'pcache'
         self.max_cached = 100
         self.t_to_slot = {}
         self.query_log = []
         self._clear_cache()
-        self.no_update = 0
+        self.no_update = 0        
+        self.miss_penalty = self._estimate_cardinality(
+            (src_table, [], [], []))
     
     def can_answer(self, query):
         """ Checks if query can be answered using cached views. 
@@ -343,19 +345,20 @@ class AggCache():
 class QueryEngine():
     """ Processes queries distinguishing entities from others. """
     
-    def __init__(self, connection, table, cmp_pred):
+    def __init__(self, connection, table, cmp_pred, update_every):
         """ Initialize query engine for specific connection.
         
         Args:
             connection: connection to database
             table: queries refer to this table
             cmp_pred: use for comparisons
+            update_every: pause between updates
         """
         self.connection = connection
         self.table = table
         self.cmp_pred = cmp_pred
         self.connection.autocommit = True
-        self.q_cache = AggCache(self.connection, 19666763, 20)
+        self.q_cache = AggCache(self.connection, table, update_every)
         
     def avg(self, eq_preds, pred, agg_col):
         """ Calculate average over aggregation column in scope. 
@@ -369,7 +372,7 @@ class QueryEngine():
             Average over aggregation column for satisfying rows
         """
         q_parts = [f'select avg({agg_col}) from {self.table} where TRUE'] 
-        q_parts += [f"{c}='{v}'" for c, v in eq_preds]
+        q_parts += [pred_sql(col=c, val=v) for c, v in eq_preds]
         q_parts += [pred]
         query = ' AND '.join(q_parts)
         

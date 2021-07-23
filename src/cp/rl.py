@@ -68,7 +68,7 @@ class PickingEnv(gym.Env):
     def __init__(self, connection, table, dim_cols, 
                  agg_cols, cmp_pred, nr_facts, nr_preds,
                  degree, max_steps, preamble, dims_tmp, 
-                 aggs_txt, all_preds):
+                 aggs_txt, all_preds, cache_freq):
         """ Read database to initialize environment. 
         
         Args:
@@ -85,6 +85,7 @@ class PickingEnv(gym.Env):
             dims_tmp: assigns each dimension to text template
             aggs_txt: assigns each aggregate to text snippet
             all_preds: all possible predicates
+            cache_freq: rounds after which cache is updated
         """
         super(PickingEnv, self).__init__()
         self.connection = connection
@@ -100,7 +101,7 @@ class PickingEnv(gym.Env):
         self.dims_tmp = dims_tmp
         self.aggs_txt = aggs_txt
         self.q_engine = QueryEngine(
-            connection, table, cmp_pred)
+            connection, table, cmp_pred, cache_freq)
         self.s_gen = SumGenerator(
             all_preds, preamble, dim_cols, 
             dims_tmp, agg_cols, aggs_txt, 

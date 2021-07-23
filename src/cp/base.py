@@ -34,7 +34,7 @@ def rand_sums(
     """
     start_s = time.time()
     q_engine = cp.query.QueryEngine(
-        connection, table, cmp_pred)
+        connection, table, cmp_pred, float('inf'))
     s_gen = cp.sum.SumGenerator(
         all_preds, preamble, dim_cols, dims_tmp, 
         agg_cols, aggs_txt, q_engine)

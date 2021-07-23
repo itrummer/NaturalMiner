@@ -36,3 +36,16 @@ def is_pred(pred):
         true iff predicate represents condition
     """
     return not pred[0].startswith("'")
+
+def pred_sql(col, val):
+    """ Generates SQL for equality predicate.
+    
+    Args:
+        col: predicate restricts this column
+        val: filter column using this value
+        
+    Returns:
+        predicate as SQL string (escaped)
+    """
+    esc_val = str(val).replace("'", r"''")
+    return f"{col}='{esc_val}'"

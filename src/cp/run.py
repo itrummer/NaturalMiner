@@ -31,19 +31,22 @@ def print_details(env):
         print(f'{f}')
 
 
-def run_rl(connection, test_case, all_preds):
+def run_rl(connection, test_case, all_preds, cache_freq):
     """ Benchmarks primary method on test case.
     
     Args:
         connection: connection to database
         test_case: describes test case
         all_preds: ordered predicates
+        cache_freq: frequency of cache updates
         
     Returns:
         summaries with reward, performance statistics
     """
     start_s = time.time()
-    env = cp.rl.PickingEnv(connection, **test_case, all_preds=all_preds)
+    env = cp.rl.PickingEnv(
+        connection, **test_case, 
+        all_preds=all_preds, cache_freq=cache_freq)
     model = A2C(
         'MlpPolicy', env, verbose=True, 
         gamma=1.0, normalize_advantage=True)
@@ -74,6 +77,7 @@ def run_random(connection, test_case, all_preds, nr_sums, timeout_s):
         nr_sums=nr_sums, timeout_s=timeout_s, 
         connection=connection, all_preds=all_preds,
         **test_case)
+
 
 def log_line(outfile, b_id, t_id, m_id, sums, p_stats):
     """ Writes one line to log file.
@@ -121,9 +125,13 @@ def main():
                         connection, t['table'], 
                         t['dim_cols'], t['cmp_pred'])
                     
-                    sums, p_stats = run_rl(connection, t, all_preds)
+                    sums, p_stats = run_rl(connection, t, all_preds, 20)
                     log_line(file, b_id, t_id, 'rl', sums, p_stats)
                     timeout_s = p_stats['time']
+                    
+                    sums, p_stats = run_rl(
+                        connection, t, all_preds, float('inf'))
+                    log_line(file, b_id, t_id, 'rlnocache', sums, p_stats)
                     
                     sums, p_stats = run_random(
                         connection, t, all_preds, 1, float('inf'))
