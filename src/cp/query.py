@@ -359,6 +359,8 @@ class QueryEngine():
         self.cmp_pred = cmp_pred
         self.connection.autocommit = True
         self.q_cache = AggCache(self.connection, table, update_every)
+        self.cache_hits = 0
+        self.cache_misses = 0
         
     def avg(self, eq_preds, pred, agg_col):
         """ Calculate average over aggregation column in scope. 
@@ -398,9 +400,11 @@ class QueryEngine():
                          self.cmp_pred, agg_col)
         
         if self.q_cache.can_answer(query):
+            self.cache_hits += 1
             return self.q_cache.get_result(query)
         
         else:
+            self.cache_misses += 1
             entity_avg = self.avg(eq_preds, self.cmp_pred, agg_col)
             general_avg = self.avg(eq_preds, 'true', agg_col)
             if entity_avg is None:
@@ -408,3 +412,11 @@ class QueryEngine():
             else:
                 f_gen_avg = max(0.0001, float(general_avg))
                 return float(entity_avg) / f_gen_avg
+            
+    def statistics(self):
+        """ Generates performance statistics. 
+        
+        Returns:
+            Dictionary with statistics
+        """
+        return {'cache_hits':self.cache_hits, 'cache_misses':self.cache_misses}

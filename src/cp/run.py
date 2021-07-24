@@ -50,7 +50,7 @@ def run_rl(connection, test_case, all_preds, cache_freq):
     model = A2C(
         'MlpPolicy', env, verbose=True, 
         gamma=1.0, normalize_advantage=True)
-    model.learn(total_timesteps=30) # 10000
+    model.learn(total_timesteps=10000) # 10000
     total_s = time.time() - start_s
     print(f'Optimization took {total_s} seconds')
     
@@ -79,6 +79,23 @@ def run_random(connection, test_case, all_preds, nr_sums, timeout_s):
         **test_case)
 
 
+def run_gen(connection, test_case, all_preds, timeout_s):
+    """ Run generative learning baseline.
+    
+    Args:
+        connection: connection to database
+        test_case: summarize for this test case
+        all_preds: all available predicates
+        timeout_s: sample until this timeout
+        
+    Returns:
+        summaries with quality, performance statistics
+    """
+    return cp.base.gen_rl(
+        timeout_s=timeout_s, connection=connection, 
+        all_preds=all_preds, **test_case)
+
+
 def log_line(outfile, b_id, t_id, m_id, sums, p_stats):
     """ Writes one line to log file.
     
@@ -96,11 +113,12 @@ def log_line(outfile, b_id, t_id, m_id, sums, p_stats):
     
     e_time = p_stats['evaluation_time']
     time = p_stats['time']
-    hitrate = 0
+    cache_hits = p_stats['cache_hits']
+    cache_misses = p_stats['cache_misses']
 
     outfile.write(f'{b_id}\t{t_id}\t{m_id}\t' \
                   f'{b_sum[0]}\t{b_sum[1]}\t{w_sum[0]}\t{w_sum[1]}\t' \
-                  f'{time}\t{e_time}\t{hitrate}\n')
+                  f'{time}\t{e_time}\t{cache_hits}\t{cache_misses}\n')
     outfile.flush()
 
 
@@ -112,34 +130,47 @@ def main():
     with open(outpath, 'w') as file:
         file.write('scenario\ttestcase\tapproach\t' \
                    'best\tbquality\tworst\twquality\t'\
-                   'time\tetime\thitrate\n')
+                   'time\tetime\tchits\tcmisses\n')
         with psycopg2.connect(database=db, user=user) as connection:
             connection.autocommit = True
             
             test_batches = cp.bench.generate_testcases()
             for b_id, b in enumerate(test_batches):
                 for t_id, t in enumerate(b):
+                    for nr_facts in [1, 2, 3]:
+                        for nr_preds in [1, 2, 3]:
                     
-                    print(f'Next up: {b_id}/{t_id}')
-                    all_preds = cp.pred.all_preds(
-                        connection, t['table'], 
-                        t['dim_cols'], t['cmp_pred'])
-                    
-                    sums, p_stats = run_rl(connection, t, all_preds, 20)
-                    log_line(file, b_id, t_id, 'rl', sums, p_stats)
-                    timeout_s = p_stats['time']
-                    
-                    sums, p_stats = run_rl(
-                        connection, t, all_preds, float('inf'))
-                    log_line(file, b_id, t_id, 'rlnocache', sums, p_stats)
-                    
-                    sums, p_stats = run_random(
-                        connection, t, all_preds, 1, float('inf'))
-                    log_line(file, b_id, t_id, 'rand1', sums, p_stats)
-                    
-                    sums, p_stats = run_random(
-                        connection, t, all_preds, float('inf'), timeout_s)
-                    log_line(file, b_id, t_id, 'rand', sums, p_stats)
+                            print(f'Next: B{b_id}/T{t_id}; ' \
+                                  f'{nr_facts}F, {nr_preds}P')
+                            
+                            all_preds = cp.pred.all_preds(
+                                connection, t['table'], 
+                                t['dim_cols'], t['cmp_pred'])
+                            t['nr_facts'] = nr_facts
+                            t['nr_preds'] = nr_preds
+                            
+                            sums, p_stats = run_rl(
+                                connection, t, all_preds, 20)
+                            log_line(file, b_id, t_id, 'rl', sums, p_stats)
+                            timeout_s = p_stats['time']
+                            
+                            sums, p_stats = run_rl(
+                                connection, t, all_preds, float('inf'))
+                            log_line(
+                                file, b_id, t_id, 'rlnocache', sums, p_stats)
+                            
+                            sums, p_stats = run_random(
+                                connection, t, all_preds, 1, float('inf'))
+                            log_line(file, b_id, t_id, 'rand1', sums, p_stats)
+                            
+                            sums, p_stats = run_random(
+                                connection, t, all_preds, 
+                                float('inf'), timeout_s)
+                            log_line(file, b_id, t_id, 'rand', sums, p_stats)
+                            
+                            sums, p_stats = run_gen(
+                                connection, t, all_preds, timeout_s)
+                            log_line(file, b_id, t_id, 'gen', sums, p_stats)
 
 if __name__ == '__main__':
     main()
