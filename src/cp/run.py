@@ -98,13 +98,16 @@ def run_gen(connection, test_case, all_preds, timeout_s):
         all_preds=all_preds, **test_case)
 
 
-def log_line(outfile, b_id, t_id, m_id, sums, p_stats):
+def log_line(outfile, b_id, t_id, nr_facts, 
+             nr_preds, m_id, sums, p_stats):
     """ Writes one line to log file.
     
     Args:
         outfile: pointer to output file
         b_id: batch ID
         t_id: test case ID
+        nr_facts: summaries use that many facts
+        nr_preds: number of predicates per fact
         m_id: method identifier
         sums: maps summaries to rewards
         p_stats: performance statistics
@@ -118,7 +121,7 @@ def log_line(outfile, b_id, t_id, m_id, sums, p_stats):
     cache_hits = p_stats['cache_hits']
     cache_misses = p_stats['cache_misses']
 
-    outfile.write(f'{b_id}\t{t_id}\t{m_id}\t' \
+    outfile.write(f'{b_id}\t{t_id}\t{m_id}\t{nr_facts}\t{nr_preds}\t' \
                   f'{b_sum[0]}\t{b_sum[1]}\t{w_sum[0]}\t{w_sum[1]}\t' \
                   f'{time}\t{e_time}\t{cache_hits}\t{cache_misses}\n')
     outfile.flush()
@@ -166,26 +169,35 @@ def main():
                             
                             sums, p_stats = run_rl(
                                 connection, t, all_preds, 20)
-                            log_line(file, b_id, t_id, 'rl', sums, p_stats)
+                            log_line(
+                                file, b_id, t_id, nr_facts, 
+                                nr_preds, 'rl', sums, p_stats)
                             timeout_s = p_stats['time']
                             
                             sums, p_stats = run_rl(
                                 connection, t, all_preds, float('inf'))
                             log_line(
-                                file, b_id, t_id, 'rlnocache', sums, p_stats)
+                                file, b_id, t_id, nr_facts,
+                                nr_preds, 'rlnocache', sums, p_stats)
                             
                             sums, p_stats = run_random(
                                 connection, t, all_preds, 1, float('inf'))
-                            log_line(file, b_id, t_id, 'rand1', sums, p_stats)
+                            log_line(
+                                file, b_id, t_id, nr_facts,
+                                nr_preds, 'rand1', sums, p_stats)
                             
                             sums, p_stats = run_random(
                                 connection, t, all_preds, 
                                 float('inf'), timeout_s)
-                            log_line(file, b_id, t_id, 'rand', sums, p_stats)
+                            log_line(
+                                file, b_id, t_id, nr_facts,
+                                nr_preds, 'rand', sums, p_stats)
                             
                             sums, p_stats = run_gen(
                                 connection, t, all_preds, timeout_s)
-                            log_line(file, b_id, t_id, 'gen', sums, p_stats)
+                            log_line(
+                                file, b_id, t_id, nr_facts,
+                                nr_preds, 'gen', sums, p_stats)
 
 if __name__ == '__main__':
     main()
