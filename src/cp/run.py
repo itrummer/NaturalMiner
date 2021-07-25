@@ -3,9 +3,11 @@ Created on Jun 6, 2021
 
 @author: immanueltrummer
 '''
+import argparse
 import cp.base
 import cp.bench
 import cp.rl
+import logging
 import psycopg2
 import time
 
@@ -123,9 +125,22 @@ def log_line(outfile, b_id, t_id, m_id, sums, p_stats):
 
 
 def main():
-    db = 'picker'
-    user = 'immanueltrummer'
-    outpath = 'cpout.tsv'
+    
+    parser = argparse.ArgumentParser(description='Run CP benchmark.')
+    parser.add_argument('db', type=str, help='database name')
+    parser.add_argument('user', type=str, help='database user')
+    parser.add_argument('out', type=str, help='result file name')
+    parser.add_argument('log', type=str, help='logging level')
+    args = parser.parse_args()
+
+    db = args.db
+    user = args.user
+    outpath = args.out
+    
+    log_level = getattr(logging, args.log.upper(), None)
+    if not isinstance(log_level, int):
+        raise ValueError(f'Invalid log level: {args.log}')
+    logging.basicConfig(level=log_level)
     
     with open(outpath, 'w') as file:
         file.write('scenario\ttestcase\tapproach\t' \

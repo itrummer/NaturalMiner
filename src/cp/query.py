@@ -5,7 +5,7 @@ Created on Jun 5, 2021
 '''
 from collections import Counter
 from cp.pred import is_pred, pred_sql
-import psycopg2
+import logging
 import time
 
 class AggQuery():
@@ -117,7 +117,7 @@ class AggCache():
         with self.connection.cursor() as cursor:
             start_s = time.time()
             cursor.execute(sql)
-            print(f'Get time: {time.time() - start_s} seconds')
+            logging.debug(f'Get time: {time.time() - start_s} seconds')
             if cursor.rowcount == 0:
                 return None
             else:
@@ -238,30 +238,34 @@ class AggCache():
         Args:
             template: query template for which to store results
         """
-        slot_id = self._next_slot()
-        table, pred_cols, cmp_pred, agg_col = template
-        cache_tbl = self._slot_table(slot_id)
-        q_parts = [f'create unlogged table {cache_tbl} as (']
-        
-        s_parts = [f'select sum({agg_col}) as s, count(*) as c']
-        s_parts += [f'sum(case when {cmp_pred} then {agg_col} else 0 end) as cmp_s']
-        s_parts += [f'sum(case when {cmp_pred} then 1 else 0 end) as cmp_c']
-        s_parts += list(pred_cols)
-        
-        q_parts += [', '.join(s_parts)]
-        q_parts += [f' from {table}']
-        if pred_cols:
-            q_parts += [' group by ' + ', '.join(pred_cols)]
-        q_parts += [')']
-        
-        sql = ' '.join(q_parts)
-        print(f'About to fill cache with SQL "{sql}"')
-        with self.connection.cursor() as cursor:
-            start_s = time.time()
-            cursor.execute(sql)
-            print(f'Put time: {time.time() - start_s} seconds')
-        
-        self.t_to_slot[template] = slot_id
+        if template not in self.t_to_slot:
+            
+            slot_id = self._next_slot()
+            table, pred_cols, cmp_pred, agg_col = template
+            cache_tbl = self._slot_table(slot_id)
+            q_parts = [f'create unlogged table {cache_tbl} as (']
+            
+            s_parts = [f'select sum({agg_col}) as s, count(*) as c']
+            s_parts += [f'sum(case when {cmp_pred} then {agg_col} ' \
+                        'else 0 end) as cmp_s']
+            s_parts += [f'sum(case when {cmp_pred} then 1 ' \
+                        'else 0 end) as cmp_c']
+            s_parts += list(pred_cols)
+            
+            q_parts += [', '.join(s_parts)]
+            q_parts += [f' from {table}']
+            if pred_cols:
+                q_parts += [' group by ' + ', '.join(pred_cols)]
+            q_parts += [')']
+            
+            sql = ' '.join(q_parts)
+            logging.debug(f'About to fill cache with SQL "{sql}"')
+            with self.connection.cursor() as cursor:
+                start_s = time.time()
+                cursor.execute(sql)
+                logging.debug(f'Put time: {time.time() - start_s} seconds')
+            
+            self.t_to_slot[template] = slot_id
         
     def _query_cost(self, view, query):
         """ Cost of answering given query from given view. 
@@ -379,7 +383,7 @@ class QueryEngine():
         query = ' AND '.join(q_parts)
         
         with self.connection.cursor() as cursor:
-            print(f'About to execute query {query}')
+            logging.debug(f'About to execute query {query}')
             cursor.execute(query)
             avg = cursor.fetchone()[0]
             

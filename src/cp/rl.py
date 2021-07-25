@@ -3,14 +3,12 @@ Created on Jun 5, 2021
 
 @author: immanueltrummer
 '''
-from cp.fact import Fact, fact_txt
+from cp.fact import Fact
 from cp.query import QueryEngine
 from gym import spaces
 from sentence_transformers import SentenceTransformer, util
-from transformers import pipeline
 import gym
 import numpy as np
-import time
 import torch
 from cp.sum import SumGenerator, SumEvaluator
 
@@ -154,9 +152,6 @@ class PickingEnv(gym.Env):
         """ Change fact or trigger evaluation. """
         self.nr_steps += 1
         
-        # text = self._generate()
-        # print(f'Step: {self.nr_steps}; {text}')
-        
         if self.nr_steps >= self.max_steps:
             done = True
             reward = self._evaluate()
@@ -214,4 +209,4 @@ class PickingEnv(gym.Env):
             agg_emb = self.agg_graph.get_embedding(agg_idx)
             components.append(agg_emb)
         
-        return torch.stack(components, dim=0).numpy()
+        return torch.stack(components, dim=0).to('cpu').numpy()

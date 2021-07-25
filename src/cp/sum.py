@@ -4,6 +4,7 @@ Created on Jul 22, 2021
 @author: immanueltrummer
 '''
 import cp.fact
+import logging
 import time
 import transformers
 
@@ -107,7 +108,7 @@ class SumEvaluator():
                     reward = -score
                 self.text_to_reward[text] = reward
     
-            print(f'Reward {reward} for "{text}"')
+            logging.debug(f'Reward {reward} for "{text}"')
         
         self.eval_s += time.time() - start_s
         return reward
