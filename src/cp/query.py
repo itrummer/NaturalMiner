@@ -105,7 +105,7 @@ class AggCache():
         slot_id = self.t_to_slot[view]
         table = self._slot_table(slot_id)
         
-        p_parts = [f"{c}='{v}'" for c, v in query.eq_preds]
+        p_parts = [pred_sql(c,v) for c, v in query.eq_preds]
         w_clause = ' and '.join(p_parts)
         sql = f'with sums as (' \
             f'select sum(c) as c, sum(s) as s, ' \
