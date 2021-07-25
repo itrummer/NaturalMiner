@@ -121,8 +121,8 @@ def log_line(outfile, b_id, t_id, nr_facts,
     cache_hits = p_stats['cache_hits']
     cache_misses = p_stats['cache_misses']
 
-    outfile.write(f'{b_id}\t{t_id}\t{m_id}\t{nr_facts}\t{nr_preds}\t' \
-                  f'{b_sum[0]}\t{b_sum[1]}\t{w_sum[0]}\t{w_sum[1]}\t' \
+    outfile.write(f'{b_id}\t{t_id}\t{nr_facts}\t{nr_preds}\t' \
+                  f'{m_id}\t{b_sum[0]}\t{b_sum[1]}\t{w_sum[0]}\t{w_sum[1]}\t' \
                   f'{time}\t{e_time}\t{cache_hits}\t{cache_misses}\n')
     outfile.flush()
 
