@@ -146,8 +146,8 @@ def main():
     logging.basicConfig(level=log_level, filemode='w')
     
     with open(outpath, 'w') as file:
-        file.write('scenario\ttestcase\tapproach\t' \
-                   'best\tbquality\tworst\twquality\t'\
+        file.write('scenario\ttestcase\tnrfacts\tnrpreds\t' \
+                   'approach\tbest\tbquality\tworst\twquality\t'\
                    'time\tetime\tchits\tcmisses\n')
         with psycopg2.connect(database=db, user=user) as connection:
             connection.autocommit = True
