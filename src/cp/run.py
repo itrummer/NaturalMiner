@@ -140,7 +140,7 @@ def main():
     log_level = getattr(logging, args.log.upper(), None)
     if not isinstance(log_level, int):
         raise ValueError(f'Invalid log level: {args.log}')
-    logging.basicConfig(level=log_level)
+    logging.basicConfig(level=log_level, filemode='w')
     
     with open(outpath, 'w') as file:
         file.write('scenario\ttestcase\tapproach\t' \
