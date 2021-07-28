@@ -33,13 +33,14 @@ def print_details(env):
         print(f'{f}')
 
 
-def run_rl(connection, test_case, all_preds, cache_freq):
+def run_rl(connection, test_case, all_preds, nr_samples, cache_freq):
     """ Benchmarks primary method on test case.
     
     Args:
         connection: connection to database
         test_case: describes test case
         all_preds: ordered predicates
+        nr_samples: number of iterations
         cache_freq: frequency of cache updates
         
     Returns:
@@ -52,7 +53,7 @@ def run_rl(connection, test_case, all_preds, cache_freq):
     model = A2C(
         'MlpPolicy', env, verbose=True, 
         gamma=1.0, normalize_advantage=True)
-    model.learn(total_timesteps=10000) # 10000
+    model.learn(total_timesteps=nr_samples)
     total_s = time.time() - start_s
     print(f'Optimization took {total_s} seconds')
     
@@ -134,11 +135,13 @@ def main():
     parser.add_argument('user', type=str, help='database user')
     parser.add_argument('out', type=str, help='result file name')
     parser.add_argument('log', type=str, help='logging level')
+    parser.add_argument('samples', type=int, help='Number RL samples')
     args = parser.parse_args()
 
     db = args.db
     user = args.user
     outpath = args.out
+    nr_samples = args.samples
     
     log_level = getattr(logging, args.log.upper(), None)
     if not isinstance(log_level, int):
@@ -168,14 +171,16 @@ def main():
                             t['nr_preds'] = nr_preds
                             
                             sums, p_stats = run_rl(
-                                connection, t, all_preds, 20)
+                                connection, t, all_preds, 
+                                nr_samples, 20)
                             log_line(
                                 file, b_id, t_id, nr_facts, 
                                 nr_preds, 'rl', sums, p_stats)
                             timeout_s = p_stats['time']
                             
                             sums, p_stats = run_rl(
-                                connection, t, all_preds, float('inf'))
+                                connection, t, all_preds, 
+                                nr_samples, float('inf'))
                             log_line(
                                 file, b_id, t_id, nr_facts,
                                 nr_preds, 'rlnocache', sums, p_stats)
