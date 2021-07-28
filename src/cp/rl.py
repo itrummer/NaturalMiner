@@ -154,6 +154,7 @@ class PickingEnv(gym.Env):
         
         if self.nr_steps >= self.max_steps:
             done = True
+            reward = 0
         else:
             fact_idx = action[0]
             prop_idx = action[1]

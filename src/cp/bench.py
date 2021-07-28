@@ -33,45 +33,69 @@ scenarios = [
             },
         'instances':{
             'keycol':'itemname', 
-            'entities':["'Barr Hill Gin'", "'Effen Vodka Cubs Edition'", "'Bacardi 151 Rum'"]
+            'entities':["'Black Velvet'", "'Hawkeye Vodka'", "'Five O''clock Vodka'"]
             }
     },
     {
-        'general':{        
-            'table':'vehicles', 
-            'dim_cols':['region', 'year', 'manufacturer', 'model', 'condition', 
-             'cylinders', 'fuel', 'title_status', 'transmission', 'drive',
-             'size', 'type', 'paint_color', 'county', 'state'],
-            'agg_cols':['price', 'odometer'], 'nr_facts':1, 'nr_preds':2, 
-            'degree':5, 'max_steps':20, 'preamble':'Among all cars',
-            'dims_tmp':['in <V>', 'from <V>', 'from <V>', 'for model <V>', 
-                      'in <V> condition', 'with <V> cylinders', 'with <V> engine',
-                      'with <V>', 'with <V> status', 'with <V> transmission', 
-                      'with <V>', 'of size <V>', 'of type <V>', 'in <V>', 
-                      'in <V>', 'in <V>'],
-            'aggs_txt':[', the price', ', the number of miles traveled']
-            },
-        'instances':{
-            'keycol':'id', 'entities':[7310898806, 7313312004, 7303589805]
-            }
-    },
-    {
-        'general':{        
-            'table':'melbournedec18', 
-            'dim_cols':['host_name', 'neighbourhood', 'neighbourhood_group', 'room_type'],
-            'agg_cols':['price', 'minimum_nights', 'number_of_reviews', 'reviews_per_month',
-                      'calculated_host_listings_count', 'availability_365'],
+        'general':{
+            'table': 'sods19',
+            'dim_cols':['satisfaction', 'dependents', 'optimism', 'codereviews', 'unittests', 
+                        'languagesused', 'country', 'coarsesalary', 'orgsize', 'jobtype',
+                        'experience', 'devrole', 'gender'],
+            'agg_cols':['salary'],
             'nr_facts':1, 'nr_preds':2, 'degree':5, 'max_steps':20,
-            'preamble':'Among all apartments, ', 
-            'dims_tmp':['hosted by <V>', 'in <V>', 'in <V>', 'of type <V>'],
-            'aggs_txt':[', the price', ', the minimum stay', ', the number of reviews',
-                      ', the reviews per month', ', the number of listings by the same host',
-                      ', the number of available days over the year']
+            'preamble':'Among all developers',
+            'dims_tmp':['who are <V> with their job', 
+                        'who answered "<V>" when asked if they care for dependents',
+                        'who answered "<V>" when asked if they feel optimistic',
+                        'who answered "<V>" when asked if they do code reviews',
+                        'who answered "<V>" when asked if they do unit tests',
+                        'who used <V> as programming languages',
+                        'from <V>', 'with a salary <V>', 'working for a <V> company',
+                        'working <V>', 'who are <V>', 'who work as <V>', 'who are <V>'],
+            'aggs_txt':[', the salary is']
             },
         'instances':{
-            'keycol':'id', 'entities':[17701730, 9601604, 20425757]
+            'keycol':'primarylang',
+            'entities':["'Bash'", "'HTML'", "'Python'"]
             }
     }
+    # {
+        # 'general':{        
+            # 'table':'vehicles', 
+            # 'dim_cols':['region', 'year', 'manufacturer', 'model', 'condition', 
+             # 'cylinders', 'fuel', 'title_status', 'transmission', 'drive',
+             # 'size', 'type', 'paint_color', 'county', 'state'],
+            # 'agg_cols':['price', 'odometer'], 'nr_facts':1, 'nr_preds':2, 
+            # 'degree':5, 'max_steps':20, 'preamble':'Among all cars',
+            # 'dims_tmp':['in <V>', 'from <V>', 'from <V>', 'for model <V>', 
+                      # 'in <V> condition', 'with <V> cylinders', 'with <V> engine',
+                      # 'with <V>', 'with <V> status', 'with <V> transmission', 
+                      # 'with <V>', 'of size <V>', 'of type <V>', 'in <V>', 
+                      # 'in <V>', 'in <V>'],
+            # 'aggs_txt':[', the price', ', the number of miles traveled']
+            # },
+        # 'instances':{
+            # 'keycol':'id', 'entities':[7310898806, 7313312004, 7303589805]
+            # }
+    # },
+    # {
+        # 'general':{        
+            # 'table':'melbournedec18', 
+            # 'dim_cols':['host_name', 'neighbourhood', 'neighbourhood_group', 'room_type'],
+            # 'agg_cols':['price', 'minimum_nights', 'number_of_reviews', 'reviews_per_month',
+                      # 'calculated_host_listings_count', 'availability_365'],
+            # 'nr_facts':1, 'nr_preds':2, 'degree':5, 'max_steps':20,
+            # 'preamble':'Among all apartments, ', 
+            # 'dims_tmp':['hosted by <V>', 'in <V>', 'in <V>', 'of type <V>'],
+            # 'aggs_txt':[', the price', ', the minimum stay', ', the number of reviews',
+                      # ', the reviews per month', ', the number of listings by the same host',
+                      # ', the number of available days over the year']
+            # },
+        # 'instances':{
+            # 'keycol':'id', 'entities':[17701730, 9601604, 20425757]
+            # }
+    # }
 ]
 
 def generate_testcases():
