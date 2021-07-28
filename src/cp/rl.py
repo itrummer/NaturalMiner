@@ -154,7 +154,6 @@ class PickingEnv(gym.Env):
         
         if self.nr_steps >= self.max_steps:
             done = True
-            reward = self._evaluate()
         else:
             fact_idx = action[0]
             prop_idx = action[1]
@@ -167,7 +166,7 @@ class PickingEnv(gym.Env):
                 new_val = self.pred_graph.get_neighbor(cur_val, nb_idx)
             self.cur_facts[fact_idx].change(prop_idx, new_val)
             done = False
-            reward = 0
+            reward = self._evaluate()
         
         return self._observe(), reward, done, {}
         
