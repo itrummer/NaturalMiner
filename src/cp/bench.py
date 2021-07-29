@@ -53,7 +53,7 @@ scenarios = [
                         'who used <V> as programming languages',
                         'from <V>', 'with a salary <V>', 'working for a <V> company',
                         'working <V>', 'who are <V>', 'who work as <V>', 'who are <V>'],
-            'aggs_txt':[', the salary is']
+            'aggs_txt':[', the salary']
             },
         'instances':{
             'keycol':'primarylang',

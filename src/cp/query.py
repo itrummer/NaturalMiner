@@ -130,16 +130,17 @@ class AggCache():
             
             views = list(self.t_to_slot.keys())
             candidates = list(self._candidate_views())
-            v_add = self._select_views(views, candidates, 3)
+            threshold = self.miss_penalty * 5
+            v_add = self._select_views(views, candidates, 3, threshold)
             nr_kept = self.max_cached - len(v_add)
-            to_keep = self._select_views(candidates, views, nr_kept)
+            to_keep = self._select_views(candidates, views, nr_kept, 0)
             v_del = set(views).difference(to_keep)
             
             logging.debug(f'Query log: {self.query_log}')
             logging.debug(f'Available views: {views}')
             logging.debug(f'View candidates: {candidates}')
             logging.debug(f'Views to add: {v_add}')
-            logging.debug(f'View to remove: {v_del}')
+            logging.debug(f'Views to remove: {v_del}')
             
             for v in v_del:
                 self._drop_results(v)
@@ -270,7 +271,9 @@ class AggCache():
             with self.connection.cursor() as cursor:
                 start_s = time.time()
                 cursor.execute(sql)
-                logging.debug(f'Put time: {time.time() - start_s} seconds')
+                logging.debug(
+                    f'Put time: {time.time() - start_s} seconds ' \
+                    f'for view {template}')
             
             self.t_to_slot[template] = slot_id
         
@@ -304,13 +307,14 @@ class AggCache():
             cost += min([self._query_cost(v, q) for v in views] + default)
         return cost
     
-    def _select_views(self, given, candidates, k):
+    def _select_views(self, given, candidates, k, threshold):
         """ Select most interesting views to add.
         
         Args:
             given: those views are available
             candidates: select among those views
             k: select so many views greedily
+            threshold: add if savings above threshold
             
         Returns:
             near-optimal views to add
@@ -326,10 +330,9 @@ class AggCache():
                 old_cost = self._query_log_cost(available)
                 new_cost = self._query_log_cost(available + [v])
                 savings = old_cost - new_cost
-                threshold = self.miss_penalty * 5
                 logging.debug(f'View {v} saves {savings} (T: {threshold})')
                 
-                if savings > threshold:
+                if savings >= threshold:
                     selected.append(v)
                 else:
                     break
