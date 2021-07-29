@@ -127,12 +127,19 @@ class AggCache():
         """ Updates cache content for maximum efficiency. """
         self.no_update += 1
         if self.no_update > self.update_every:
+            
             views = list(self.t_to_slot.keys())
             candidates = list(self._candidate_views())
             v_add = self._select_views(views, candidates, 3)
             nr_kept = self.max_cached - len(v_add)
             to_keep = self._select_views(candidates, views, nr_kept)
             v_del = set(views).difference(to_keep)
+            
+            logging.debug(f'Query log: {self.query_log}')
+            logging.debug(f'Available views: {views}')
+            logging.debug(f'View candidates: {candidates}')
+            logging.debug(f'Views to add: {v_add}')
+            logging.debug(f'View to remove: {v_del}')
             
             for v in v_del:
                 self._drop_results(v)
@@ -310,10 +317,22 @@ class AggCache():
         selected = []
         nr_to_add = min(k, len(candidates))
         for _ in range(nr_to_add):
+            
             available = given + selected
             c = {v:self._query_log_cost(available + [v]) for v in candidates}
             v = min(c, key=c.get)
-            selected.append(v)
+            
+            old_cost = self._query_log_cost(available)
+            new_cost = self._query_log_cost(available + [v])
+            savings = old_cost - new_cost
+            threshold = self.miss_penalty * 5
+            logging.debug(f'View {v} saves {savings} (T: {threshold})')
+            
+            if savings > threshold:
+                selected.append(v)
+            else:
+                break
+            
         return set(selected)
     
     def _slot_table(self, slot_id):

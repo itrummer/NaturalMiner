@@ -55,7 +55,7 @@ def run_rl(connection, test_case, all_preds, nr_samples, cache_freq):
         gamma=1.0, normalize_advantage=True)
     model.learn(total_timesteps=nr_samples)
     total_s = time.time() - start_s
-    print(f'Optimization took {total_s} seconds')
+    logging.debug(f'Optimization took {total_s} seconds')
     
     p_stats = {'time':total_s}
     p_stats.update(env.statistics())

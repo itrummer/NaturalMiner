@@ -114,6 +114,7 @@ def gen_rl(timeout_s, **kwargs):
     
     r_params = kwargs.copy()
     r_params['nr_facts'] = 10
+    r_params['nr_preds'] = 1
     s_eval = cp.sum.SumEvaluator()
     start_s = time.time()
     t_to_q = {}
@@ -121,7 +122,6 @@ def gen_rl(timeout_s, **kwargs):
     
     while True:
         rt_to_q, _ = rand_sums(1, float('inf'), **r_params)
-        print(rt_to_q)
         
         rand_facts = list(rt_to_q.keys())[0]
         if rand_facts is not None:
