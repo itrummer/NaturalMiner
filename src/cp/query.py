@@ -300,7 +300,8 @@ class AggCache():
         """
         cost = 0
         for q in self.query_log:
-            cost += min([self._query_cost(v, q) for v in views])
+            default = [self.miss_penalty]
+            cost += min([self._query_cost(v, q) for v in views] + default)
         return cost
     
     def _select_views(self, given, candidates, k):
