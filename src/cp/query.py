@@ -320,16 +320,18 @@ class AggCache():
             
             available = given + selected
             c = {v:self._query_log_cost(available + [v]) for v in candidates}
-            v = min(c, key=c.get)
-            
-            old_cost = self._query_log_cost(available)
-            new_cost = self._query_log_cost(available + [v])
-            savings = old_cost - new_cost
-            threshold = self.miss_penalty * 5
-            logging.debug(f'View {v} saves {savings} (T: {threshold})')
-            
-            if savings > threshold:
-                selected.append(v)
+            if c:
+                v = min(c, key=c.get)
+                old_cost = self._query_log_cost(available)
+                new_cost = self._query_log_cost(available + [v])
+                savings = old_cost - new_cost
+                threshold = self.miss_penalty * 5
+                logging.debug(f'View {v} saves {savings} (T: {threshold})')
+                
+                if savings > threshold:
+                    selected.append(v)
+                else:
+                    break
             else:
                 break
             
