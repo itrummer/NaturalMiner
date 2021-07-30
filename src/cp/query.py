@@ -320,11 +320,13 @@ class AggCache():
             near-optimal views to add
         """
         selected = []
+        c_left = candidates.copy()
+        
         nr_to_add = min(k, len(candidates))
         for _ in range(nr_to_add):
             
             available = given + selected
-            c = {v:self._query_log_cost(available + [v]) for v in candidates}
+            c = {v:self._query_log_cost(available + [v]) for v in c_left}
             if c:
                 v = min(c, key=c.get)
                 old_cost = self._query_log_cost(available)
@@ -334,6 +336,7 @@ class AggCache():
                 
                 if savings >= threshold:
                     selected.append(v)
+                    c_left.remove(v)
                 else:
                     break
             else:
