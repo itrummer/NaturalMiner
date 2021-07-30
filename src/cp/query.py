@@ -133,7 +133,7 @@ class AggCache():
             threshold = self.miss_penalty * 5
             v_add = self._select_views(views, candidates, 3, threshold)
             nr_kept = self.max_cached - len(v_add)
-            to_keep = self._select_views(v_add, views, nr_kept, 0)
+            to_keep = self._select_views(list(v_add), views, nr_kept, 0)
             v_del = set(views).difference(to_keep)
             
             logging.debug(f'Query log: {self.query_log}')
