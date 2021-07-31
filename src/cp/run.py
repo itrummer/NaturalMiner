@@ -60,7 +60,7 @@ def run_rl(connection, test_case, all_preds, nr_samples, c_type, c_freq):
         cmp_pred = test_case['cmp_pred']
         agg_cols = test_case['agg_cols']
         cache = cp.cache.static.CubeCache(
-            connection, table, dim_cols, cmp_pred, agg_cols, 300)
+            connection, table, dim_cols, cmp_pred, agg_cols, 900)
     else:
         raise ValueError(f'Unknown cache type: {c_type}')
     
@@ -192,8 +192,8 @@ def main():
                                     connection, t, all_preds, 
                                     nr_samples, c_type, 20)
                                 log_line(
-                                    file, b_id, t_id, nr_facts, 
-                                    nr_preds, 'rl', sums, p_stats)
+                                    file, b_id, t_id, nr_facts, nr_preds, 
+                                    'rl' + c_type, sums, p_stats)
                                 # timeout_s = p_stats['time']
                                 #
                             # sums, p_stats = run_random(
