@@ -6,6 +6,8 @@ Created on Jun 6, 2021
 import argparse
 import cp.base
 import cp.bench
+import cp.cache.dynamic
+import cp.cache.static
 import cp.rl
 import logging
 import psycopg2
@@ -33,7 +35,7 @@ def print_details(env):
         print(f'{f}')
 
 
-def run_rl(connection, test_case, all_preds, nr_samples, cache_freq):
+def run_rl(connection, test_case, all_preds, nr_samples, c_type, c_freq):
     """ Benchmarks primary method on test case.
     
     Args:
@@ -47,9 +49,24 @@ def run_rl(connection, test_case, all_preds, nr_samples, cache_freq):
         summaries with reward, performance statistics
     """
     start_s = time.time()
+    
+    table = test_case['table']
+    if c_type == 'dynamic':
+        cache = cp.cache.dynamic.DynamicCache(connection, table, c_freq)
+    elif c_type == 'empty':
+        cache = cp.cache.static.EmptyCache()
+    elif c_type == 'cube':
+        dim_cols = test_case['dim_cols']
+        cmp_pred = test_case['cmp_pred']
+        agg_cols = test_case['agg_cols']
+        cache = cp.cache.static.CubeCache(
+            connection, table, dim_cols, cmp_pred, agg_cols, 300)
+    else:
+        raise ValueError(f'Unknown cache type: {c_type}')
+    
     env = cp.rl.PickingEnv(
         connection, **test_case, 
-        all_preds=all_preds, cache_freq=cache_freq)
+        all_preds=all_preds, cache=cache)
     model = A2C(
         'MlpPolicy', env, verbose=True, 
         gamma=1.0, normalize_advantage=True)
@@ -170,39 +187,33 @@ def main():
                             t['nr_facts'] = nr_facts
                             t['nr_preds'] = nr_preds
                             
-                            sums, p_stats = run_rl(
-                                connection, t, all_preds, 
-                                nr_samples, 20)
-                            log_line(
-                                file, b_id, t_id, nr_facts, 
-                                nr_preds, 'rl', sums, p_stats)
-                            timeout_s = p_stats['time']
-                            
-                            sums, p_stats = run_rl(
-                                connection, t, all_preds, 
-                                nr_samples, float('inf'))
-                            log_line(
-                                file, b_id, t_id, nr_facts,
-                                nr_preds, 'rlnocache', sums, p_stats)
-                            
-                            sums, p_stats = run_random(
-                                connection, t, all_preds, 1, float('inf'))
-                            log_line(
-                                file, b_id, t_id, nr_facts,
-                                nr_preds, 'rand1', sums, p_stats)
-                            
-                            sums, p_stats = run_random(
-                                connection, t, all_preds, 
-                                float('inf'), timeout_s)
-                            log_line(
-                                file, b_id, t_id, nr_facts,
-                                nr_preds, 'rand', sums, p_stats)
-                            
-                            sums, p_stats = run_gen(
-                                connection, t, all_preds, timeout_s)
-                            log_line(
-                                file, b_id, t_id, nr_facts,
-                                nr_preds, 'gen', sums, p_stats)
+                            for c_type in ['cube', 'empty', 'dynamic']:
+                                sums, p_stats = run_rl(
+                                    connection, t, all_preds, 
+                                    nr_samples, c_type, 20)
+                                log_line(
+                                    file, b_id, t_id, nr_facts, 
+                                    nr_preds, 'rl', sums, p_stats)
+                                # timeout_s = p_stats['time']
+                                #
+                            # sums, p_stats = run_random(
+                                # connection, t, all_preds, 1, float('inf'))
+                            # log_line(
+                                # file, b_id, t_id, nr_facts,
+                                # nr_preds, 'rand1', sums, p_stats)
+                                #
+                            # sums, p_stats = run_random(
+                                # connection, t, all_preds, 
+                                # float('inf'), timeout_s)
+                            # log_line(
+                                # file, b_id, t_id, nr_facts,
+                                # nr_preds, 'rand', sums, p_stats)
+                                #
+                            # sums, p_stats = run_gen(
+                                # connection, t, all_preds, timeout_s)
+                            # log_line(
+                                # file, b_id, t_id, nr_facts,
+                                # nr_preds, 'gen', sums, p_stats)
 
 if __name__ == '__main__':
     main()
