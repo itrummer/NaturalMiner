@@ -87,6 +87,7 @@ class View():
         
         dim_cols = self.dim_cols.union(view.dim_cols)
         agg_cols = self.agg_cols.union(view.agg_cols)
+        print(f'Dim cols: {dim_cols}')
         
         return View(self.table, dim_cols, self.cmp_pred, agg_cols)
 
@@ -285,15 +286,15 @@ class AggCache():
             cache_tbl = self._slot_table(slot_id)
             q_parts = [f'create unlogged table {cache_tbl} as (']
             
-            s_parts = [f'select count(*) as c,']
+            s_parts = [f'select count(*) as c']
             s_parts += [f'sum(case when {cmp_pred} then 1 ' \
                         'else 0 end) as cmp_c']
+            s_parts += list(pred_cols)
             
             for agg_col in view.agg_cols:
-                s_parts = [f'select sum({agg_col}) as s_{agg_col}']
+                s_parts += [f'sum({agg_col}) as s_{agg_col}']
                 s_parts += [f'sum(case when {cmp_pred} then {agg_col} ' \
                             f'else 0 end) as cmp_s_{agg_col}']
-                s_parts += list(pred_cols)
             
             q_parts += [', '.join(s_parts)]
             q_parts += [f' from {table}']
@@ -310,7 +311,7 @@ class AggCache():
                     f'Put time: {time.time() - start_s} seconds ' \
                     f'for view {view}')
             
-            self.t_to_slot[view] = slot_id
+            self.v_to_slot[view] = slot_id
         
     def _query_cost(self, view, query):
         """ Cost of answering given query from given view. 
