@@ -5,6 +5,8 @@ Created on Jun 5, 2021
 '''
 from collections import Counter
 from cp.pred import is_pred, pred_sql
+from dataclasses import dataclass
+from typing import FrozenSet
 import logging
 import time
 
@@ -33,14 +35,60 @@ class AggQuery():
         """
         return frozenset([p[0] for p in self.eq_preds if is_pred(p)])
         
-    def template(self):
-        """ Calculate query template signature for cache lookups.
+    def view(self):
+        """ Calculate minimal view containing query result.
         
         Returns:
             query template signature as tuple
         """
-        cols = self.pred_cols()
-        return self.table, cols, self.cmp_pred, self.agg_col
+        dim_cols = self.pred_cols()
+        agg_cols = frozenset(self.agg_col)
+        return View(self.table, dim_cols, self.cmp_pred, agg_cols)
+
+
+@dataclass(frozen=True)
+class View():
+    """ Represents a materialized view. """
+    
+    table: str
+    dim_cols: FrozenSet[str]
+    cmp_pred: str
+    agg_cols: FrozenSet[str]
+        
+    def can_answer(self, query):
+        """ Determines if view contains answer to query. 
+        
+        Args:
+            query: test if view can answer this query
+            
+        Returns:
+            true iff the view can answer the query
+        """
+        
+        if self.table == query.table and \
+            self.cmp_pred == query.cmp_pred and \
+            query.agg_col in self.agg_cols and \
+            query.pred_cols().issubset(self.dim_cols):
+            return True
+        else:
+            return False
+        
+    def merge(self, view):
+        """ Generates new view merging this with other view. 
+        
+        Args:
+            view: merge with this view
+            
+        Returns:
+            New view merging dimensions and aggregates
+        """
+        assert(self.table == view.table)
+        assert(self.cmp_pred == view.cmp_pred)
+        
+        dim_cols = self.dim_cols.union(view.dim_cols)
+        agg_cols = self.agg_cols.union(view.agg_cols)
+        
+        return View(self.table, dim_cols, self.cmp_pred, agg_cols)
 
 
 class AggCache():
@@ -58,12 +106,12 @@ class AggCache():
         self.update_every = update_every
         self.prefix = 'pcache'
         self.max_cached = 100
-        self.t_to_slot = {}
+        self.v_to_slot = {}
         self.query_log = []
         self._clear_cache()
-        self.no_update = 0        
-        self.miss_penalty = self._estimate_cardinality(
-            (src_table, [], [], []))
+        self.no_update = 0
+        src_view = View(src_table, [], [], [])
+        self.miss_penalty = self._estimate_cardinality(src_view)
     
     def can_answer(self, query):
         """ Checks if query can be answered using cached views. 
@@ -75,9 +123,8 @@ class AggCache():
             flag indicating if query can be answered from cache
         """
         self.query_log.append(query)
-        t = query.template()
-        views = self.t_to_slot.keys()
-        if [v for v in views if self._specializes(t, v)]:
+        views = self.v_to_slot.keys()
+        if [v for v in views if v.can_answer(query)]:
             return True
         else:
             return False
@@ -94,22 +141,21 @@ class AggCache():
         self.query_log.append(query)
         
         q_views = []
-        t = query.template()
-        for v in self.t_to_slot.keys():
-            if self._specializes(t, v):
+        for v in self.v_to_slot.keys():
+            if v.can_answer(query):
                 q_views.append(v)
                 
         v_cards = {v:self._estimate_cardinality(v) for v in q_views}
         view = min(v_cards, key=v_cards.get)
             
-        slot_id = self.t_to_slot[view]
+        slot_id = self.v_to_slot[view]
         table = self._slot_table(slot_id)
         
         p_parts = [pred_sql(c,v) for c, v in query.eq_preds]
         w_clause = ' and '.join(p_parts)
         sql = f'with sums as (' \
-            f'select sum(c) as c, sum(s) as s, ' \
-            f'sum(cmp_c) as cmp_c, sum(cmp_s) as cmp_s ' \
+            f'select sum(c) as c, sum(s_{query.agg_col}) as s, ' \
+            f'sum(cmp_c) as cmp_c, sum(cmp_s_{query.agg_col}) as cmp_s ' \
             f'from {table} where {w_clause}) ' \
             f'select case when cmp_c = 0 or s = 0 then NULL '\
             f'else (cmp_s/cmp_c)/(s/c) end as rel_avg from sums'
@@ -128,7 +174,7 @@ class AggCache():
         self.no_update += 1
         if self.no_update > self.update_every:
             
-            views = list(self.t_to_slot.keys())
+            views = list(self.v_to_slot.keys())
             candidates = list(self._candidate_views())
             threshold = self.miss_penalty * 5
             v_add = self._select_views(views, candidates, 3, threshold)
@@ -150,24 +196,23 @@ class AggCache():
             self.no_update = 0
 
     def _candidate_views(self):
-        """ Selects candidate templates for which to generate results. 
+        """ Selects candidate views for which to generate results. 
         
         Returns:
-            set of query templates representing candidates
+            set of candidate views to materialize
         """
-        t_counts = Counter()
-        for q in self.query_log:            
-            t = q.template()
-            t_counts.update([t])
+        v_counts = Counter()
+        for q in self.query_log:
+            v = q.view()
+            v_counts.update([v])
             
-        candidates = set([c[0] for c in t_counts.most_common(10)])
+        candidates = set([c[0] for c in v_counts.most_common(10)])
         for _ in range(3):
             expanded = set()
-            for t_1 in candidates:
-                for t_2 in candidates:
-                    t_m = self._merge_templates(t_1, t_2)
-                    if t_m:
-                        expanded.add(t_m)
+            for v_1 in candidates:
+                for v_2 in candidates:
+                    v_m = v_1.merge(v_2)
+                    expanded.add(v_m)
             candidates.update(expanded)
         
         return candidates
@@ -180,28 +225,30 @@ class AggCache():
                 sql = f'drop table if exists {cache_tbl}'
                 cursor.execute(sql)
 
-    def _drop_results(self, template):
-        """ Drop view for given template. 
+    def _drop_results(self, view):
+        """ Drop given view. 
         
         Args:
             template: drop results for this view
         """
-        slot_id = self.t_to_slot[template]
+        slot_id = self.v_to_slot[view]
         slot_tbl = self._slot_table(slot_id)
         with self.connection.cursor() as cursor:
             cursor.execute(f'drop table if exists {slot_tbl}')
-        del self.t_to_slot[template]
+        del self.v_to_slot[view]
 
-    def _estimate_cardinality(self, template):
-        """ Estimate cardinality for view storing template results. 
+    def _estimate_cardinality(self, view):
+        """ Estimate cardinality for given view. 
         
         Args:
-            template: analyze view associated with this template
+            view: analyze cardinality of this view
             
         Returns:
-            estimated cardinality for view on template
+            estimated cardinality for view
         """
-        table, cols, _, _ = template
+        table = view.table
+        cols = view.dim_cols
+        
         sql = f'explain (format json) select 1 from {table}'
         if cols:
             group_by = ', '.join(cols)
@@ -214,51 +261,39 @@ class AggCache():
             
         return rows
 
-    def _merge_templates(self, t_1, t_2):
-        """ Merge templates into a new template.
-        
-        Args:
-            t_1: first template to merge
-            t_2: second template to merge
-            
-        Returns:
-            template combining columns if compatible, otherwise None
-        """
-        table_1, col_1, pred_1, agg_1 = t_1
-        table_2, col_2, pred_2, agg_2 = t_2
-        if table_1 == table_2 and pred_1 == pred_2 and agg_1 == agg_2:
-            merged_cols = col_1.union(col_2)
-            return table_1, merged_cols, pred_1, agg_1
-        else:
-            return None
-
     def _next_slot(self):
         """ Selects next free slot in cache.
         
         Returns:
             lowest slot ID that is available (exception if none)
         """
-        return min(set(range(self.max_cached)) - set(self.t_to_slot.values()))
+        return min(set(range(self.max_cached)) - set(self.v_to_slot.values()))
 
-    def _put_results(self, template):
-        """ Generates and caches results for query template.
+    def _put_results(self, view):
+        """ Generates and register materialized view.
         
         Args:
-            template: query template for which to store results
+            view: generate this view
         """
-        if template not in self.t_to_slot:
+        if view not in self.v_to_slot:
             
             slot_id = self._next_slot()
-            table, pred_cols, cmp_pred, agg_col = template
+            table = view.table
+            cmp_pred = view.cmp_pred
+            pred_cols = view.dim_cols
+            
             cache_tbl = self._slot_table(slot_id)
             q_parts = [f'create unlogged table {cache_tbl} as (']
             
-            s_parts = [f'select sum({agg_col}) as s, count(*) as c']
-            s_parts += [f'sum(case when {cmp_pred} then {agg_col} ' \
-                        'else 0 end) as cmp_s']
+            s_parts = [f'select count(*) as c,']
             s_parts += [f'sum(case when {cmp_pred} then 1 ' \
                         'else 0 end) as cmp_c']
-            s_parts += list(pred_cols)
+            
+            for agg_col in view.agg_cols:
+                s_parts = [f'select sum({agg_col}) as s_{agg_col},']
+                s_parts += [f'sum(case when {cmp_pred} then {agg_col} ' \
+                            f'else 0 end) as cmp_s_{agg_col}']
+                s_parts += list(pred_cols)
             
             q_parts += [', '.join(s_parts)]
             q_parts += [f' from {table}']
@@ -273,9 +308,9 @@ class AggCache():
                 cursor.execute(sql)
                 logging.debug(
                     f'Put time: {time.time() - start_s} seconds ' \
-                    f'for view {template}')
+                    f'for view {view}')
             
-            self.t_to_slot[template] = slot_id
+            self.t_to_slot[view] = slot_id
         
     def _query_cost(self, view, query):
         """ Cost of answering given query from given view. 
@@ -285,9 +320,9 @@ class AggCache():
             query: answer this query using view
             
         Returns:
-            estimated cost for answering query, 'inf' if impossible
+            estimated cost for answering query
         """
-        if self._specializes(query.template(), view):
+        if view.can_answer(query):
             return self._estimate_cardinality(view)
         else:
             return self.miss_penalty
@@ -354,24 +389,6 @@ class AggCache():
             name of table storing cache slot
         """
         return self.prefix + str(slot_id)
-    
-    def _specializes(self, t_1, t_2):
-        """ Determines if first template specializes second. 
-        
-        Args:
-            t_1: check if this template specializes the other
-            t_2: check if this template generalizes the other
-            
-        Returns:
-            true iff the first template specializes the second
-        """
-        table_1, cols_1, pred_1, agg_1 = t_1
-        table_2, cols_2, pred_2, agg_2 = t_2
-        if table_1 == table_2 and pred_1 == pred_2 and \
-            agg_1 == agg_2 and cols_1.issubset(cols_2):
-            return True
-        else:
-            return False
 
 
 class QueryEngine():
