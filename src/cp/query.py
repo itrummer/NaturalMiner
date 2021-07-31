@@ -290,7 +290,7 @@ class AggCache():
                         'else 0 end) as cmp_c']
             
             for agg_col in view.agg_cols:
-                s_parts = [f'select sum({agg_col}) as s_{agg_col},']
+                s_parts = [f'select sum({agg_col}) as s_{agg_col}']
                 s_parts += [f'sum(case when {cmp_pred} then {agg_col} ' \
                             f'else 0 end) as cmp_s_{agg_col}']
                 s_parts += list(pred_cols)
