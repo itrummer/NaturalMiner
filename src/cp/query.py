@@ -42,7 +42,7 @@ class AggQuery():
             query template signature as tuple
         """
         dim_cols = self.pred_cols()
-        agg_cols = frozenset(self.agg_col)
+        agg_cols = frozenset([self.agg_col])
         return View(self.table, dim_cols, self.cmp_pred, agg_cols)
 
 
