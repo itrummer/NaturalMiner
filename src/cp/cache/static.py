@@ -72,7 +72,10 @@ class CubeCache(AggCache):
         sql = ' '.join(q_parts) + ' where ' + w_clause
         with self.connection.cursor() as cursor:
             cursor.execute(sql)
-            return cursor.fetchone()[0]
+            if cursor.rowcount == 0:
+                return None
+            else:
+                return cursor.fetchone()[0]
     
     def update(self):
         pass
