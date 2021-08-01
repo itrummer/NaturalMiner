@@ -5,6 +5,8 @@ Created on Jul 31, 2021
 '''
 from cp.cache.common import AggCache
 from cp.pred import is_pred, pred_sql
+import logging
+import time
 
 class EmptyCache(AggCache):
     """ Dummy cache that remains empty. """
@@ -71,6 +73,7 @@ class CubeCache(AggCache):
         
         sql = ' '.join(q_parts) + ' where ' + w_clause
         with self.connection.cursor() as cursor:
+            logging.debug(f'Cache lookup via "{sql}"')
             cursor.execute(sql)
             if cursor.rowcount == 0:
                 return None
@@ -103,7 +106,9 @@ class CubeCache(AggCache):
         sql = f'create unlogged table {self.cube_tbl} as (' + \
             ', '.join(s_parts) + f' from {self.src_tbl} ' + \
             ' group by cube (' + ', '.join(self.dim_cols) + '))'
+        logging.debug(f'About to create cube via "{sql}"')
 
+        start_s = time.time()
         success = False
         with self.connection.cursor() as cursor:
             cursor.execute(f"set statement_timeout = '{self.timeout_s}s'")
@@ -112,5 +117,7 @@ class CubeCache(AggCache):
                 success = True
             finally:
                 cursor.execute('set statement_timeout = 0')
+        total_s = time.time() - start_s
+        logging.debug(f'Created cube in {total_s} seconds; success: {success}')
             
         return success
