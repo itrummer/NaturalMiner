@@ -94,6 +94,9 @@ class CubeCache(AggCache):
         Returns:
             true iff cube was created until timeout
         """
+        if len(self.dim_cols) > 12:
+            return False
+        
         s_parts = ['select count(*) as c']
         s_parts += [f'sum(case when {self.cmp_pred} then 1 else 0 end) as cmp_c']
         s_parts += self.dim_cols
