@@ -278,7 +278,7 @@ class PickingEnv(gym.Env):
         # prune out cached results
         if len(d_to_v) == 1:
             logging.debug(f'Unpruned values: {d_to_v}')
-            d, vals = d_to_v.items()[0]
+            d, vals = list(d_to_v.items())[0]
             vals = self._prune_vals(d, vals, rel_aggs)
             logging.debug(f'Pruned values: {vals}')
             scope = frozenset([(d, frozenset(vals))])
