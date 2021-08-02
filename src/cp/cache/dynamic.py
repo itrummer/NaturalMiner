@@ -51,7 +51,7 @@ class View():
             query.agg_col in self.agg_cols and \
             query.pred_cols().issubset(self.dim_cols):
             
-            if self.scope is not None:
+            if self.scope:
                 for q_d, q_v in query.eq_preds:
                     for s_d, s_vals in self.scope:
                         if q_d == s_d and not (q_v in s_vals):
