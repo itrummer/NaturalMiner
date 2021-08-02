@@ -6,6 +6,7 @@ Created on Jun 5, 2021
 from cp.cache.common import AggQuery
 from cp.pred import pred_sql
 import logging
+import time
 
 class QueryEngine():
     """ Processes queries distinguishing entities from others. """
@@ -66,12 +67,19 @@ class QueryEngine():
         
         if self.q_cache.can_answer(query):
             self.cache_hits += 1
+            logging.debug(f'Cache hit: {query}')
             return self.q_cache.get_result(query)
         
         else:
             self.cache_misses += 1
+            logging.debug(f'Cache miss: {query}')
+            
+            start_s = time.time()
             entity_avg = self.avg(eq_preds, self.cmp_pred, agg_col)
             general_avg = self.avg(eq_preds, 'true', agg_col)
+            total_s = time.time() - start_s
+            logging.debug(f'Processing {query} took {total_s} seconds')
+            
             if entity_avg is None:
                 return None
             else:

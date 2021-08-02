@@ -8,6 +8,7 @@ from cp.query import QueryEngine
 from gym import spaces
 from sentence_transformers import SentenceTransformer, util
 import gym
+import logging
 import numpy as np
 import torch
 from cp.sum import SumGenerator, SumEvaluator
@@ -169,6 +170,7 @@ class PickingEnv(gym.Env):
         """ Change fact or trigger evaluation. """
         self.nr_steps += 1
         self._expand_scope()
+        logging.debug(f'Step {self.nr_steps}')
         
         if self.nr_steps >= self.max_steps:
             done = True
@@ -218,7 +220,7 @@ class PickingEnv(gym.Env):
         pred_ids = []
         for fact in self.cur_facts:
             for pred_idx in fact.get_preds():
-                pred_ids += self.pred_graph.get_reachable(pred_idx, 2)
+                pred_ids += self.pred_graph.get_reachable(pred_idx, 1)
         
         for pred_id in pred_ids:
             pred = self.all_preds[pred_id]

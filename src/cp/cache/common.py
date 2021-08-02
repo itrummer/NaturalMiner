@@ -5,23 +5,17 @@ Created on Jul 31, 2021
 '''
 from abc import ABC, abstractmethod
 from cp.pred import is_pred
+from dataclasses import dataclass
+from typing import List, Tuple
 
+@dataclass
 class AggQuery():
     """ Represents a simple aggregation query. """
     
-    def __init__(self, table, eq_preds, cmp_pred, agg_col):
-        """ Initializes aggregation query. 
-        
-        Args:
-            table: table the query refers to
-            eq_preds: list of equality predicates
-            cmp_pred: predicate for comparison
-            agg_col: aggregation column
-        """
-        self.table = table
-        self.eq_preds = eq_preds
-        self.cmp_pred = cmp_pred
-        self.agg_col = agg_col
+    table: str
+    eq_preds: List[Tuple[str, str]]
+    cmp_pred: str
+    agg_col: str
         
     def pred_cols(self):
         """ Returns columns of query predicates. 
