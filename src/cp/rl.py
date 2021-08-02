@@ -270,11 +270,11 @@ class PickingEnv(gym.Env):
         scope = frozenset([(d, frozenset(v)) for d, v in d_to_v.items()])
         
         # calculate aggregate scope
-        rel_aggs = set()
+        rel_agg_ids = set()
         for u_agg in u_aggs:
             reachable = self.agg_graph.get_reachable(u_agg, 1)
-            rel_aggs.update(reachable)
-        rel_aggs = frozenset(rel_aggs)
+            rel_agg_ids.update(reachable)
+        rel_aggs = frozenset([self.agg_cols[a_id] for a_id in rel_agg_ids])
 
         # construct view for caching
         v = View(self.table, rel_dims, self.cmp_pred, rel_aggs, scope)
