@@ -258,7 +258,14 @@ class PickingEnv(gym.Env):
                 u_preds.update(fact.get_preds())
                 u_aggs.update([fact.get_agg()])
                 u_queries.append(query)
-                
+                        
+        # calculate aggregate scope
+        rel_agg_ids = set()
+        for u_agg in u_aggs:
+            reachable = self.agg_graph.get_reachable(u_agg, 1)
+            rel_agg_ids.update(reachable)
+        rel_aggs = frozenset([self.agg_cols[a_id] for a_id in rel_agg_ids])
+        
         # calculate predicate scope
         rel_dims = frozenset([p[0] for q in u_queries for p in q.eq_preds])
         d_to_v = defaultdict(lambda:set())
@@ -267,16 +274,44 @@ class PickingEnv(gym.Env):
                 dim, val = self.all_preds[p_idx]
                 if dim in rel_dims:
                     d_to_v[dim].add(val)
-        scope = frozenset([(d, frozenset(v)) for d, v in d_to_v.items()])
         
-        # calculate aggregate scope
-        rel_agg_ids = set()
-        for u_agg in u_aggs:
-            reachable = self.agg_graph.get_reachable(u_agg, 1)
-            rel_agg_ids.update(reachable)
-        rel_aggs = frozenset([self.agg_cols[a_id] for a_id in rel_agg_ids])
+        # prune out cached results
+        if len(d_to_v) == 1:
+            logging.debug(f'Unpruned values: {d_to_v}')
+            d, vals = d_to_v.items()[0]
+            vals = self._prune_vals(d, vals, rel_aggs)
+            logging.debug(f'Pruned values: {vals}')
+            scope = frozenset([(d, frozenset(vals))])
+        else:
+            scope = frozenset([(d, frozenset(v)) for d, v in d_to_v.items()])
 
         # construct view for caching
         v = View(self.table, rel_dims, self.cmp_pred, rel_aggs, scope)
         logging.debug(f'Proactive caching selects {v}')
         self.cache.put_results(v)
+        
+    def _prune_vals(self, dim, vals, aggs):
+        """ Prune out values for which all aggregates are cached.
+        
+        Args:
+            dim: dimension column
+            vals: values in dimension column to prune
+            aggs: relevant aggregation columns
+        
+        Returns:
+            subset of values for which not all aggregates are cached
+        """
+        keep_vals = []
+        for val in vals:
+            cached = True
+            for agg in aggs:
+                eq_preds = frozenset([(dim, val)])
+                query = AggQuery(self.table, eq_preds, self.cmp_pred, agg)
+                if not self.cache.can_answer(query):
+                    cached = False
+                    break
+            
+            if not cached:
+                keep_vals += [val]
+        
+        return keep_vals
