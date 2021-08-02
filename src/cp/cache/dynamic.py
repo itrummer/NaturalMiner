@@ -266,7 +266,7 @@ class DynamicCache(AggCache):
         if self.scoped:
             return frozenset([(d,frozenset(v)) for d, v in self.scope.items()])
         else:
-            return None
+            return frozenset()
 
     def _next_slot(self):
         """ Selects next free slot in cache.
