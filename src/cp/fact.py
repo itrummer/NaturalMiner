@@ -83,12 +83,12 @@ def fact_txt(fact, preamble, dim_cols, all_preds,
     """
     f_parts = [preamble]
     preds = [all_preds[i] for i in fact.get_preds()]
+    preds = list(filter(lambda p:is_pred(p), preds))
     for pred in preds:
-        if is_pred(pred):
-            dim_idx = dim_cols.index(pred[0])
-            dim_tmp = dims_tmp[dim_idx]
-            dim_txt = dim_tmp.replace('<V>', str(pred[1]))
-            f_parts.append(dim_txt)
+        dim_idx = dim_cols.index(pred[0])
+        dim_tmp = dims_tmp[dim_idx]
+        dim_txt = dim_tmp.replace('<V>', str(pred[1]))
+        f_parts.append(dim_txt)
 
     agg_idx = fact.get_agg()
     agg_col = agg_cols[agg_idx]
