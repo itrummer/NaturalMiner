@@ -58,7 +58,23 @@ class EmbeddingGraph():
             i-th neighbor of j-th node
         """
         return self.neighbors[node][n_id]
-
+    
+    def get_reachable(self, start, steps):
+        """ Retrieve all nodes reachable within a given number of steps. 
+        
+        Args:
+            start: ID of start node
+            steps: maximal number of steps
+            
+        Returns:
+            all nodes reachable within given number of steps
+        """
+        reachable = set([start])
+        for _ in range(steps):
+            boundary = [nb for n in reachable for nb in self.neighbors[n]]
+            reachable.update(boundary)
+            
+        return reachable
 
 class PickingEnv(gym.Env):
     """ Environment for selecting facts for a data summary. """
@@ -98,6 +114,7 @@ class PickingEnv(gym.Env):
         self.preamble = preamble
         self.dims_tmp = dims_tmp
         self.aggs_txt = aggs_txt
+        self.cache = cache
         self.q_engine = QueryEngine(
             connection, table, cmp_pred, cache)
         self.s_gen = SumGenerator(
@@ -151,6 +168,7 @@ class PickingEnv(gym.Env):
     def step(self, action):
         """ Change fact or trigger evaluation. """
         self.nr_steps += 1
+        self._expand_scope()
         
         if self.nr_steps >= self.max_steps:
             done = True
@@ -194,6 +212,17 @@ class PickingEnv(gym.Env):
         """ Evaluate quality of current summary. """
         text = self.s_gen.generate(self.cur_facts)
         return self.s_eval.evaluate(text)
+    
+    def _expand_scope(self):
+        """ Expands scope for caching. """
+        pred_ids = []
+        for fact in self.cur_facts:
+            for pred_idx in fact.get_preds():
+                pred_ids += self.pred_graph.get_reachable(pred_idx, 2)
+        
+        for pred_id in pred_ids:
+            pred = self.all_preds[pred_id]
+            self.cache.expand_scope(pred)
             
     def _observe(self):
         """ Returns observations for learning agent. """

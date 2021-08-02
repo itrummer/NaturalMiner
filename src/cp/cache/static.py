@@ -14,6 +14,9 @@ class EmptyCache(AggCache):
     def can_answer(self, _):
         return False
     
+    def expand_scope(self, pred):
+        pass
+    
     def get_result(self, _):
         raise NotImplementedError
     
@@ -49,6 +52,9 @@ class CubeCache(AggCache):
     
     def can_answer(self, _):
         return self.have_cube
+    
+    def expand_scope(self, pred):
+        pass
     
     def get_result(self, query):
         """ Get result for query from cached cube.

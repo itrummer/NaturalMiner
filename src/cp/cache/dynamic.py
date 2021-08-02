@@ -3,11 +3,11 @@ Created on Jul 31, 2021
 
 @author: immanueltrummer
 '''
-from collections import Counter
+from collections import Counter, defaultdict
 from cp.cache.common import AggCache
 from cp.pred import pred_sql
 from dataclasses import dataclass
-from typing import FrozenSet
+from typing import FrozenSet, Tuple
 import logging
 import time
 
@@ -19,20 +19,22 @@ class View():
     dim_cols: FrozenSet[str]
     cmp_pred: str
     agg_cols: FrozenSet[str]
+    scope: FrozenSet[Tuple[str, FrozenSet[str]]]
 
     @staticmethod    
-    def from_query(query):
+    def from_query(query, im_scope):
         """ Calculate minimal view containing query result.
         
         Args:
             query: generate view subsuming this query
+            im_scope: immutable data scope
         
         Returns:
             query template signature as tuple
         """
         dim_cols = query.pred_cols()
         agg_cols = frozenset([query.agg_col])
-        return View(query.table, dim_cols, query.cmp_pred, agg_cols)
+        return View(query.table, dim_cols, query.cmp_pred, agg_cols, im_scope)
         
     def can_answer(self, query):
         """ Determines if view contains answer to query. 
@@ -48,15 +50,22 @@ class View():
             self.cmp_pred == query.cmp_pred and \
             query.agg_col in self.agg_cols and \
             query.pred_cols().issubset(self.dim_cols):
+            
+            for q_d, q_v in query.eq_preds:
+                for s_d, s_vals in self.scope:
+                    if q_d == s_d and not (q_v in s_vals):
+                        return False
+            
             return True
         else:
             return False
             
-    def merge(self, view):
+    def merge(self, view, im_scope):
         """ Generates new view merging this with other view. 
         
         Args:
             view: merge with this view
+            im_scope: immutable scope
             
         Returns:
             New view merging dimensions and aggregates
@@ -67,7 +76,7 @@ class View():
         dim_cols = self.dim_cols.union(view.dim_cols)
         agg_cols = self.agg_cols.union(view.agg_cols)
         
-        return View(self.table, dim_cols, self.cmp_pred, agg_cols)
+        return View(self.table, dim_cols, self.cmp_pred, agg_cols, im_scope)
 
 
 class DynamicCache(AggCache):
@@ -88,9 +97,10 @@ class DynamicCache(AggCache):
         self.v_to_slot = {}
         self.query_log = []
         self._clear_cache()
-        self.no_update = 0
-        src_view = View(src_table, [], [], [])
-        self.miss_penalty = self._estimate_cardinality(src_view)
+        self.no_update = 0        
+        self.scope = defaultdict(lambda: set())
+        explain_sql = f'explain (format json) select * from {src_table}'
+        self.miss_penalty = self._row_estimate(explain_sql)
     
     def can_answer(self, query):
         """ Checks if query can be answered using cached views. 
@@ -107,6 +117,16 @@ class DynamicCache(AggCache):
             return True
         else:
             return False
+
+    def expand_scope(self, pred):
+        """ Expands scope for caching.
+        
+        Args:
+            pred: pair of column and value
+        """
+        col = pred[0]
+        val = pred[1]
+        self.scope[col].add(val)
 
     def get_result(self, query):
         """ Generate query result from a view. 
@@ -180,9 +200,10 @@ class DynamicCache(AggCache):
         Returns:
             set of candidate views to materialize
         """
+        im_scope = self._frozen_scope()
         v_counts = Counter()
         for q in self.query_log:
-            v = View.from_query(q)
+            v = View.from_query(q, im_scope)
             v_counts.update([v])
             
         candidates = set([c[0] for c in v_counts.most_common(10)])
@@ -190,7 +211,7 @@ class DynamicCache(AggCache):
             expanded = set()
             for v_1 in candidates:
                 for v_2 in candidates:
-                    v_m = v_1.merge(v_2)
+                    v_m = v_1.merge(v_2, im_scope)
                     expanded.add(v_m)
             candidates.update(expanded)
         
@@ -225,20 +246,20 @@ class DynamicCache(AggCache):
         Returns:
             estimated cardinality for view
         """
-        table = view.table
-        cols = view.dim_cols
+        q_parts = [f'explain (format json) select 1 from {view.table}']
+        q_parts += [self._view_where_sql(view)]
+        q_parts += [self._view_group_sql(view)]
+        sql = ' '.join(q_parts)
         
-        sql = f'explain (format json) select 1 from {table}'
-        if cols:
-            group_by = ', '.join(cols)
-            sql += f' group by {group_by}'
-
-        with self.connection.cursor() as cursor:
-            cursor.execute(sql)
-            res = cursor.fetchall()
-            rows = res[0][0][0]['Plan']['Plan Rows']
-            
-        return rows
+        return self._row_estimate(sql)
+    
+    def _frozen_scope(self):
+        """ Returns immutable version of scope.
+        
+        Returns:
+            frozen set of pairs: (dimension, values in scope)
+        """
+        return frozenset([(d,frozenset(v)) for d, v in self.scope.items()])
 
     def _next_slot(self):
         """ Selects next free slot in cache.
@@ -276,10 +297,10 @@ class DynamicCache(AggCache):
             
             q_parts += [', '.join(s_parts)]
             q_parts += [f' from {table}']
-            if pred_cols:
-                q_parts += [' group by ' + ', '.join(pred_cols)]
+            q_parts += [self._view_where_sql(view)]
+            q_parts += [self._view_group_sql(view)]
             q_parts += [')']
-            
+
             sql = ' '.join(q_parts)
             logging.debug(f'About to fill cache with SQL "{sql}"')
             with self.connection.cursor() as cursor:
@@ -320,6 +341,22 @@ class DynamicCache(AggCache):
             default = [self.miss_penalty]
             cost += min([self._query_cost(v, q) for v in views] + default)
         return cost
+    
+    def _row_estimate(self, explain_sql):
+        """ Extracts result row estimate for explain query.
+        
+        Args:
+            explain_sql: SQL explain query (as string)
+            
+        Returns:
+            estimated number of query result rows
+        """
+        with self.connection.cursor() as cursor:
+            cursor.execute(explain_sql)
+            res = cursor.fetchall()
+            rows = res[0][0][0]['Plan']['Plan Rows']
+            
+        return rows
     
     def _select_views(self, given, candidates, k, threshold):
         """ Select most interesting views to add.
@@ -368,3 +405,39 @@ class DynamicCache(AggCache):
             name of table storing cache slot
         """
         return self.prefix + str(slot_id)
+    
+    def _view_group_sql(self, view):
+        """  Generates group-by clause of query generating view.
+        
+        Args:
+            view: a view
+            
+        Returns:
+            SQL group-by clause for view
+        """
+        dim_cols = view.dim_cols
+        if dim_cols:
+            return 'group by ' + ', '.join(dim_cols)
+        else:
+            return ''
+    
+    def _view_where_sql(self, view):
+        """ Generates where clause of query generating view.
+        
+        Args:
+            view: a view
+            
+        Returns:
+            SQL where clause for view
+        """
+        pred_cols = view.dim_cols
+        if pred_cols:
+            w_parts = []
+            for s_d, s_vals in view.scope:
+                if s_d in pred_cols:
+                    c_parts = [pred_sql(s_d, v) for v in s_vals]
+                    w_parts += ['(' + ' or '.join(c_parts) + ')']
+
+            return ' where ' + ' and '.join(w_parts)
+        else:
+            return ''

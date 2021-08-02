@@ -187,7 +187,7 @@ def main():
                             t['nr_facts'] = nr_facts
                             t['nr_preds'] = nr_preds
                             
-                            for c_type in ['cube', 'empty', 'dynamic']:
+                            for c_type in ['dynamic', 'cube', 'empty']:
                                 sums, p_stats = run_rl(
                                     connection, t, all_preds, 
                                     nr_samples, c_type, 20)

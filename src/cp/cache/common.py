@@ -48,6 +48,15 @@ class AggCache(ABC):
         raise NotImplementedError
     
     @abstractmethod
+    def expand_scope(self, pred):
+        """ Expands scope for caching.
+        
+        Args:
+            pred: pair of column and value
+        """
+        raise NotImplementedError
+    
+    @abstractmethod
     def get_result(self, query):
         """ Get result for query from cache content.
         

@@ -3,6 +3,7 @@ Created on Jul 21, 2021
 
 @author: immanueltrummer
 '''
+import cp.cache.static
 import cp.fact
 import cp.query
 import cp.sum
@@ -46,8 +47,9 @@ def rand_sums(
         Dictionary mapping summaries to reward, statistics
     """
     start_s = time.time()
+    cache = cp.cache.static.EmptyCache()
     q_engine = cp.query.QueryEngine(
-        connection, table, cmp_pred, float('inf'))
+        connection, table, cmp_pred, cache)
     s_gen = cp.sum.SumGenerator(
         all_preds, preamble, dim_cols, dims_tmp, 
         agg_cols, aggs_txt, q_engine)
