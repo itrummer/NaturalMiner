@@ -142,6 +142,7 @@ class PickingEnv(gym.Env):
             low=-10, high=10, shape=(self.nr_props, 384), dtype=np.float32)
         
         self.eval_s = 0
+        self.nr_t_steps = 0
         self.reset()
         self._evaluate()
     
@@ -168,11 +169,12 @@ class PickingEnv(gym.Env):
 
     def step(self, action):
         """ Change fact or trigger evaluation. """
-        self.nr_steps += 1
+        self.nr_ep_steps += 1
+        self.nr_t_steps += 1
         self._expand_scope()
-        logging.debug(f'Step {self.nr_steps}')
+        logging.debug(f'Step {self.nr_t_steps} (in episode: {self.nr_ep_steps})')
         
-        if self.nr_steps >= self.max_steps:
+        if self.nr_ep_steps >= self.max_steps:
             done = True
             reward = 0
         else:
@@ -193,7 +195,7 @@ class PickingEnv(gym.Env):
         
     def reset(self):
         """ Reset data summary to default. """
-        self.nr_steps = 0
+        self.nr_ep_steps = 0
         for fact in self.cur_facts:
             fact.reset()
             
