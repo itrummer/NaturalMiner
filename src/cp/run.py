@@ -52,7 +52,7 @@ def run_rl(connection, test_case, all_preds, nr_samples, c_type, c_freq):
     
     table = test_case['table']
     if c_type == 'dynamic':
-        cache = cp.cache.dynamic.DynamicCache(connection, table, c_freq)
+        cache = cp.cache.dynamic.DynamicCache(connection, table, c_freq, False)
     elif c_type == 'empty':
         cache = cp.cache.static.EmptyCache()
     elif c_type == 'cube':

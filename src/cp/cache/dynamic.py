@@ -51,10 +51,11 @@ class View():
             query.agg_col in self.agg_cols and \
             query.pred_cols().issubset(self.dim_cols):
             
-            for q_d, q_v in query.eq_preds:
-                for s_d, s_vals in self.scope:
-                    if q_d == s_d and not (q_v in s_vals):
-                        return False
+            if self.scope is not None:
+                for q_d, q_v in query.eq_preds:
+                    for s_d, s_vals in self.scope:
+                        if q_d == s_d and not (q_v in s_vals):
+                            return False
             
             return True
         else:
@@ -82,13 +83,14 @@ class View():
 class DynamicCache(AggCache):
     """ Cache of aggregate values, updating cache content dynamically. """
 
-    def __init__(self, connection, src_table, update_every):
+    def __init__(self, connection, src_table, update_every, scoped):
         """ Initializes query cache.
         
         Args:
             connection: database connection
             src_table: source of cached data
             update_every: wait between cache updates
+            scoped: whether to assign views to scopes
         """
         self.connection = connection
         self.update_every = update_every
@@ -98,7 +100,8 @@ class DynamicCache(AggCache):
         self.query_log = []
         self._clear_cache()
         self.no_update = 0        
-        self.scope = defaultdict(lambda: set())
+        self.scoped = scoped
+        self.scope = defaultdict(lambda: set()) if scoped else None
         explain_sql = f'explain (format json) select * from {src_table}'
         self.miss_penalty = self._row_estimate(explain_sql)
     
@@ -124,9 +127,10 @@ class DynamicCache(AggCache):
         Args:
             pred: pair of column and value
         """
-        col = pred[0]
-        val = pred[1]
-        self.scope[col].add(val)
+        if self.scoped:
+            col = pred[0]
+            val = pred[1]
+            self.scope[col].add(val)
 
     def get_result(self, query):
         """ Generate query result from a view. 
@@ -259,7 +263,10 @@ class DynamicCache(AggCache):
         Returns:
             frozen set of pairs: (dimension, values in scope)
         """
-        return frozenset([(d,frozenset(v)) for d, v in self.scope.items()])
+        if self.scoped:
+            return frozenset([(d,frozenset(v)) for d, v in self.scope.items()])
+        else:
+            return None
 
     def _next_slot(self):
         """ Selects next free slot in cache.
@@ -430,11 +437,10 @@ class DynamicCache(AggCache):
         Returns:
             SQL where clause for view
         """
-        pred_cols = view.dim_cols
-        if pred_cols:
+        if self.scoped and view.dim_cols:
             w_parts = []
             for s_d, s_vals in view.scope:
-                if s_d in pred_cols:
+                if s_d in view.dim_cols:
                     c_parts = [pred_sql(s_d, v) for v in s_vals]
                     w_parts += ['(' + ' or '.join(c_parts) + ')']
 
