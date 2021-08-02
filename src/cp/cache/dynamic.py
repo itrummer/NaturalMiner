@@ -130,10 +130,11 @@ class DynamicCache(AggCache):
         
         p_parts = [pred_sql(c,v) for c, v in query.eq_preds]
         w_clause = ' and '.join(p_parts)
+        w_clause = 'where ' + w_clause if w_clause else w_clause
         sql = f'with sums as (' \
             f'select sum(c) as c, sum(s_{query.agg_col}) as s, ' \
             f'sum(cmp_c) as cmp_c, sum(cmp_s_{query.agg_col}) as cmp_s ' \
-            f'from {table} where {w_clause}) ' \
+            f'from {table} {w_clause}) ' \
             f'select case when cmp_c = 0 or s = 0 then NULL '\
             f'else (cmp_s/cmp_c)/(s/c) end as rel_avg from sums'
         
