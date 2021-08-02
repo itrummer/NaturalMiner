@@ -247,6 +247,7 @@ class PickingEnv(gym.Env):
         # collect un-cached fact queries
         u_queries = []
         u_preds = set()
+        u_aggs = set()
         for fact in self.cur_facts:
             eq_preds = [self.all_preds[p] for p in fact.get_preds()]
             eq_preds = list(filter(lambda p: is_pred(p), eq_preds))
@@ -255,13 +256,11 @@ class PickingEnv(gym.Env):
             query = AggQuery(self.table, eq_preds, self.cmp_pred, agg_col)
             if not self.cache.can_answer(query):
                 u_preds.update(fact.get_preds())
+                u_aggs.update([fact.get_agg()])
                 u_queries.append(query)
-        
-        # collect relevant columns
-        rel_dims = frozenset([p[0] for q in u_queries for p in q.eq_preds])
-        rel_aggs = frozenset([q.agg_col for q in u_queries])
-        
+                
         # calculate predicate scope
+        rel_dims = frozenset([p[0] for q in u_queries for p in q.eq_preds])
         d_to_v = defaultdict(lambda:set())
         for p in u_preds:
             for p_idx in self.pred_graph.get_reachable(p, 1):
@@ -269,6 +268,13 @@ class PickingEnv(gym.Env):
                 if dim in rel_dims:
                     d_to_v[dim].add(val)
         scope = frozenset([(d, frozenset(v)) for d, v in d_to_v.items()])
+        
+        # calculate aggregate scope
+        rel_aggs = set()
+        for u_agg in u_aggs:
+            reachable = self.agg_graph.get_reachable(u_agg, 1)
+            rel_aggs.update(reachable)
+        rel_aggs = frozenset(rel_aggs)
 
         # construct view for caching
         v = View(self.table, rel_dims, self.cmp_pred, rel_aggs, scope)
