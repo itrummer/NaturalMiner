@@ -52,7 +52,7 @@ class AggCache(ABC):
             query result
         """
         raise NotImplementedError
-    
+
     @abstractmethod
     def update(self):
         """ Update cache content (no effect for static cache). """

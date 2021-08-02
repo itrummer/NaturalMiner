@@ -189,6 +189,9 @@ class DynamicCache(AggCache):
             
             self.v_to_slot[view] = slot_id
 
+    def update(self):
+        pass
+
     def _clear_cache(self):
         """ Clears all cached relations. """
         for i in range(self.max_cached):
@@ -232,7 +235,23 @@ class DynamicCache(AggCache):
             lowest slot ID that is available (exception if none)
         """
         return min(set(range(self.max_cached)) - set(self.v_to_slot.values()))
-   
+
+    def _row_estimate(self, explain_sql):
+        """ Extracts result row estimate for explain query.
+        
+        Args:
+            explain_sql: SQL explain query (as string)
+            
+        Returns:
+            estimated number of query result rows
+        """
+        with self.connection.cursor() as cursor:
+            cursor.execute(explain_sql)
+            res = cursor.fetchall()
+            rows = res[0][0][0]['Plan']['Plan Rows']
+            
+        return rows
+
     def _slot_table(self, slot_id):
         """ Returns name of table storing slot content. 
         
@@ -268,7 +287,7 @@ class DynamicCache(AggCache):
         Returns:
             SQL where clause for view
         """
-        if self.scoped and view.dim_cols:
+        if view.dim_cols:
             w_parts = []
             for s_d, s_vals in view.scope:
                 if s_d in view.dim_cols:

@@ -53,20 +53,23 @@ def run_rl(connection, test_case, all_preds, nr_samples, c_type, c_freq):
     table = test_case['table']
     if c_type == 'dynamic':
         cache = cp.cache.dynamic.DynamicCache(connection)
+        proactive = True
     elif c_type == 'empty':
         cache = cp.cache.static.EmptyCache()
+        proactive = False
     elif c_type == 'cube':
         dim_cols = test_case['dim_cols']
         cmp_pred = test_case['cmp_pred']
         agg_cols = test_case['agg_cols']
         cache = cp.cache.static.CubeCache(
             connection, table, dim_cols, cmp_pred, agg_cols, 900)
+        proactive = False
     else:
         raise ValueError(f'Unknown cache type: {c_type}')
     
     env = cp.rl.PickingEnv(
-        connection, **test_case, 
-        all_preds=all_preds, cache=cache)
+        connection, **test_case, all_preds=all_preds, 
+        cache=cache, proactive=proactive)
     model = A2C(
         'MlpPolicy', env, verbose=True, 
         gamma=1.0, normalize_advantage=True)

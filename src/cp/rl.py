@@ -3,10 +3,11 @@ Created on Jun 5, 2021
 
 @author: immanueltrummer
 '''
-from collections import defaultdict, frozenset
+from collections import defaultdict
 from cp.cache.common import AggQuery
 from cp.cache.dynamic import View
 from cp.fact import Fact
+from cp.pred import is_pred
 from cp.query import QueryEngine
 from cp.sum import SumGenerator, SumEvaluator
 from gym import spaces
@@ -86,7 +87,7 @@ class PickingEnv(gym.Env):
     def __init__(self, connection, table, dim_cols, 
                  agg_cols, cmp_pred, nr_facts, nr_preds,
                  degree, max_steps, preamble, dims_tmp, 
-                 aggs_txt, all_preds, cache):
+                 aggs_txt, all_preds, cache, proactive):
         """ Read database to initialize environment. 
         
         Args:
@@ -104,6 +105,7 @@ class PickingEnv(gym.Env):
             aggs_txt: assigns each aggregate to text snippet
             all_preds: all possible predicates
             cache: caches query results
+            proactive: whether to cache proactively
         """
         super(PickingEnv, self).__init__()
         self.connection = connection
@@ -119,6 +121,7 @@ class PickingEnv(gym.Env):
         self.dims_tmp = dims_tmp
         self.aggs_txt = aggs_txt
         self.cache = cache
+        self.proactive = proactive
         self.q_engine = QueryEngine(
             connection, table, cmp_pred, cache)
         self.s_gen = SumGenerator(
@@ -192,7 +195,8 @@ class PickingEnv(gym.Env):
             self.cur_facts[fact_idx].change(prop_idx, new_val)
             
             done = False
-            self._proactive_caching()
+            if self.proactive:
+                self._proactive_caching()
             reward = self._evaluate()
         
         return self._observe(), reward, done, {}
@@ -241,25 +245,27 @@ class PickingEnv(gym.Env):
         """ Fill cache with values for current facts and beyond. """
         
         # collect un-cached fact queries
-        u_queries = set()
+        u_queries = []
         u_preds = set()
         for fact in self.cur_facts:
             eq_preds = [self.all_preds[p] for p in fact.get_preds()]
+            eq_preds = list(filter(lambda p: is_pred(p), eq_preds))
             agg_idx = fact.get_agg()
             agg_col = self.agg_cols[agg_idx]
             query = AggQuery(self.table, eq_preds, self.cmp_pred, agg_col)
             if not self.cache.can_answer(query):
-                u_preds.add(fact.get_preds())
-                u_queries.add(query)
+                u_preds.update(fact.get_preds())
+                u_queries.append(query)
         
         # collect relevant columns
-        rel_dims = set([p[0] for q in u_queries for p in q.eq_preds])
-        rel_aggs = set([q.agg_col for q in u_queries])
+        rel_dims = frozenset([p[0] for q in u_queries for p in q.eq_preds])
+        rel_aggs = frozenset([q.agg_col for q in u_queries])
         
         # calculate predicate scope
         d_to_v = defaultdict(lambda:set())
         for p in u_preds:
-            for dim, val in self.pred_graph.get_reachable(p, 1):
+            for p_idx in self.pred_graph.get_reachable(p, 1):
+                dim, val = self.all_preds[p_idx]
                 if dim in rel_dims:
                     d_to_v[dim].add(val)
         scope = frozenset([(d, frozenset(v)) for d, v in d_to_v.items()])
@@ -267,4 +273,4 @@ class PickingEnv(gym.Env):
         # construct view for caching
         v = View(self.table, rel_dims, self.cmp_pred, rel_aggs, scope)
         logging.debug(f'Proactive caching selects {v}')
-        self.cache._put_results(v)
+        self.cache.put_results(v)
