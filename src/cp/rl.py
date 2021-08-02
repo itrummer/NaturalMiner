@@ -3,15 +3,18 @@ Created on Jun 5, 2021
 
 @author: immanueltrummer
 '''
+from collections import defaultdict, frozenset
+from cp.cache.common import AggQuery
+from cp.cache.dynamic import View
 from cp.fact import Fact
 from cp.query import QueryEngine
+from cp.sum import SumGenerator, SumEvaluator
 from gym import spaces
 from sentence_transformers import SentenceTransformer, util
 import gym
 import logging
 import numpy as np
 import torch
-from cp.sum import SumGenerator, SumEvaluator
 
 class EmbeddingGraph():
     """ Graph connecting nodes with similar label embeddings. """
@@ -171,7 +174,6 @@ class PickingEnv(gym.Env):
         """ Change fact or trigger evaluation. """
         self.nr_ep_steps += 1
         self.nr_t_steps += 1
-        self._expand_scope()
         logging.debug(f'Step {self.nr_t_steps} (in episode: {self.nr_ep_steps})')
         
         if self.nr_ep_steps >= self.max_steps:
@@ -188,7 +190,9 @@ class PickingEnv(gym.Env):
             else:
                 new_val = self.pred_graph.get_neighbor(cur_val, nb_idx)
             self.cur_facts[fact_idx].change(prop_idx, new_val)
+            
             done = False
+            self._proactive_caching()
             reward = self._evaluate()
         
         return self._observe(), reward, done, {}
@@ -216,18 +220,7 @@ class PickingEnv(gym.Env):
         """ Evaluate quality of current summary. """
         text = self.s_gen.generate(self.cur_facts)
         return self.s_eval.evaluate(text)
-    
-    def _expand_scope(self):
-        """ Expands scope for caching. """
-        pred_ids = []
-        for fact in self.cur_facts:
-            for pred_idx in fact.get_preds():
-                pred_ids += self.pred_graph.get_reachable(pred_idx, 1)
-        
-        for pred_id in pred_ids:
-            pred = self.all_preds[pred_id]
-            self.cache.expand_scope(pred)
-            
+
     def _observe(self):
         """ Returns observations for learning agent. """
         components = []
@@ -243,3 +236,35 @@ class PickingEnv(gym.Env):
             components.append(agg_emb)
         
         return torch.stack(components, dim=0).to('cpu').numpy()
+    
+    def _proactive_caching(self):
+        """ Fill cache with values for current facts and beyond. """
+        
+        # collect un-cached fact queries
+        u_queries = set()
+        u_preds = set()
+        for fact in self.cur_facts:
+            eq_preds = [self.all_preds[p] for p in fact.get_preds()]
+            agg_idx = fact.get_agg()
+            agg_col = self.agg_cols[agg_idx]
+            query = AggQuery(self.table, eq_preds, self.cmp_pred, agg_col)
+            if not self.cache.can_answer(query):
+                u_preds.add(fact.get_preds())
+                u_queries.add(query)
+        
+        # collect relevant columns
+        rel_dims = set([p[0] for q in u_queries for p in q.eq_preds])
+        rel_aggs = set([q.agg_col for q in u_queries])
+        
+        # calculate predicate scope
+        d_to_v = defaultdict(lambda:set())
+        for p in u_preds:
+            for dim, val in self.pred_graph.get_reachable(p, 1):
+                if dim in rel_dims:
+                    d_to_v[dim].add(val)
+        scope = frozenset([(d, frozenset(v)) for d, v in d_to_v.items()])
+
+        # construct view for caching
+        v = View(self.table, rel_dims, self.cmp_pred, rel_aggs, scope)
+        logging.debug(f'Proactive caching selects {v}')
+        self.cache._put_results(v)

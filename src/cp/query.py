@@ -61,7 +61,6 @@ class QueryEngine():
         Returns:
             Ratio of entity to general average
         """
-        self.q_cache.update()
         query = AggQuery(self.table, eq_preds, 
                          self.cmp_pred, agg_col)
         
