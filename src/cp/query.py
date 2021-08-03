@@ -79,7 +79,7 @@ class QueryEngine():
             total_s = time.time() - start_s
             logging.debug(f'Processing {query} took {total_s} seconds')
             
-            if entity_avg is None:
+            if entity_avg is None or general_avg is None:
                 return None
             else:
                 f_gen_avg = max(0.0001, float(general_avg))
