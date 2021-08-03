@@ -239,6 +239,8 @@ def main():
             
             test_batches = cp.bench.generate_testcases()
             for b_id, b in enumerate(test_batches):
+                if b_id < 1:
+                    continue
                 for t_id, t in enumerate(b):
                     for nr_facts in [1, 2, 3]:
                         for nr_preds in [1, 2, 3]:
