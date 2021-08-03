@@ -272,7 +272,7 @@ class PickingEnv(gym.Env):
         rel_dims = frozenset([p[0] for q in u_queries for p in q.eq_preds])
         d_to_v = defaultdict(lambda:set())
         for p in u_preds:
-            for p_idx in self.pred_graph.get_reachable(p, 2):
+            for p_idx in self.pred_graph.get_reachable(p, 1):
                 dim, val = self.all_preds[p_idx]
                 if dim in rel_dims:
                     d_to_v[dim].add(val)
