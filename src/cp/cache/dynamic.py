@@ -291,7 +291,7 @@ class DynamicCache(AggCache):
         w_parts = []
         for s_d, s_vals in view.scope:
             if s_d in view.dim_cols:
-                esc_s_vals = [sql_esc(v) for v in s_vals]
+                esc_s_vals = [f"'{sql_esc(v)}'" for v in s_vals]
                 w_parts += [s_d + ' in (' + ', '.join(esc_s_vals) + ')']
 
         if w_parts:
