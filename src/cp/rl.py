@@ -287,6 +287,12 @@ class PickingEnv(gym.Env):
         else:
             scope = frozenset([(d, frozenset(v)) for d, v in d_to_v.items()])
 
+        # no values left for at least one dimension?
+        for dim, vals in scope:
+            if not vals:
+                logging.debug(f'No values for dimension {dim}')
+                return
+
         # construct view for caching
         v = View(self.table, rel_dims, self.cmp_pred, rel_aggs, scope)
         logging.debug(f'Proactive caching selects {v}')
