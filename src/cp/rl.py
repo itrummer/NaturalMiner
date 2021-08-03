@@ -265,6 +265,8 @@ class PickingEnv(gym.Env):
             reachable = self.agg_graph.get_reachable(u_agg, 1)
             rel_agg_ids.update(reachable)
         rel_aggs = frozenset([self.agg_cols[a_id] for a_id in rel_agg_ids])
+        if not rel_aggs:
+            return
         
         # calculate predicate scope
         rel_dims = frozenset([p[0] for q in u_queries for p in q.eq_preds])
