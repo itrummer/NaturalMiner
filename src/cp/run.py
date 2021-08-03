@@ -251,7 +251,11 @@ def main():
                             t['nr_facts'] = nr_facts
                             t['nr_preds'] = nr_preds
                             
-                            run_sampling(connection, t, all_preds)
+                            sums, p_stats = run_sampling(
+                                connection, t, all_preds)
+                            log_line(
+                                file, b_id, t_id, nr_facts, nr_preds, 
+                                'sample', sums, p_stats)
                             
                             for c_type in ['empty']:
                                 sums, p_stats = run_rl(
