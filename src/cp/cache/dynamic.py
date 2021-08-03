@@ -288,13 +288,14 @@ class DynamicCache(AggCache):
         Returns:
             SQL where clause for view
         """
-        if view.dim_cols:
-            w_parts = []
-            for s_d, s_vals in view.scope:
-                if s_d in view.dim_cols:
-                    c_parts = [pred_sql(s_d, v) for v in s_vals]
+        w_parts = []
+        for s_d, s_vals in view.scope:
+            if s_d in view.dim_cols:
+                c_parts = [pred_sql(s_d, v) for v in s_vals]
+                if c_parts:
                     w_parts += ['(' + ' or '.join(c_parts) + ')']
 
+        if w_parts:
             return ' where ' + ' and '.join(w_parts)
         else:
             return ''
