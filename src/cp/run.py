@@ -8,7 +8,10 @@ import cp.base
 import cp.bench
 import cp.cache.dynamic
 import cp.cache.static
+import cp.fact
+import cp.query
 import cp.rl
+import cp.sum
 import logging
 import psycopg2
 import time
@@ -82,6 +85,64 @@ def run_rl(connection, test_case, all_preds, nr_samples, c_type, c_freq):
     
     return env.s_eval.text_to_reward, p_stats
 
+
+def run_sampling(connection, test_case, all_preds):
+    """ Run sampling algorithm. 
+    
+    Args:
+        connection: connection to database
+        test_case: summarize for this test case
+        all_preds: all available predicates
+        
+    Returns:
+        summaries with quality, performance statistics
+    """
+    start_s = time.time()
+    
+    full_table = test_case['table']
+    table_sample = f'(select * from {full_table} limit 10000) as S'
+    test_case['table'] = table_sample
+    
+    cache = cp.cache.static.EmptyCache()    
+    env = cp.rl.PickingEnv(
+        connection, **test_case, all_preds=all_preds, 
+        cache=cache, proactive=False)
+    model = A2C(
+        'MlpPolicy', env, verbose=True, 
+        gamma=1.0, normalize_advantage=True)
+    model.learn(total_timesteps=200)
+    
+    sorted_props = sorted(env.props_to_rewards.items(), key=lambda s: s[1])
+    best_props = sorted_props[-1][0]
+    
+    preamble = test_case['preamble']
+    cmp_pred = test_case['cmp_pred']
+    dim_cols = test_case['dim_cols']
+    dims_tmp = test_case['dims_tmp']
+    agg_cols = test_case['agg_cols']
+    aggs_txt = test_case['aggs_txt']
+    q_engine = cp.query.QueryEngine(
+        connection, full_table, cmp_pred, cache)
+    s_gen = cp.sum.SumGenerator(
+        all_preds, preamble, dim_cols, 
+        dims_tmp, agg_cols, aggs_txt, 
+        q_engine)
+    s_eval = cp.sum.SumEvaluator()
+    
+    best_facts = [cp.fact.Fact.from_props(p) for p in best_props]
+    text = s_gen.generate(best_facts)
+    reward = s_eval.evaluate(text)
+    logging.debug(f'Best speech "{text}" with reward {reward}')
+
+    total_s = time.time() - start_s
+    logging.debug(f'Optimization took {total_s} seconds')
+    
+    p_stats = {'time':total_s}
+    p_stats.update(q_engine.statistics())
+    p_stats.update(s_gen.statistics())
+    p_stats.update(s_eval.statistics())
+    
+    return env.s_eval.text_to_reward, p_stats
 
 def run_random(connection, test_case, all_preds, nr_sums, timeout_s):
     """ Run simple random generation baseline.
@@ -190,7 +251,9 @@ def main():
                             t['nr_facts'] = nr_facts
                             t['nr_preds'] = nr_preds
                             
-                            for c_type in ['dynamic', 'cube', 'empty']:
+                            run_sampling(connection, t, all_preds)
+                            
+                            for c_type in ['empty']:
                                 sums, p_stats = run_rl(
                                     connection, t, all_preds, 
                                     nr_samples, c_type, 20)

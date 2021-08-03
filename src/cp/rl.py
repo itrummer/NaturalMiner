@@ -19,7 +19,7 @@ import torch
 
 class EmbeddingGraph():
     """ Graph connecting nodes with similar label embeddings. """
-    
+
     def __init__(self, labels, degree):
         """ Generate graph with given labels.
         
@@ -129,6 +129,7 @@ class PickingEnv(gym.Env):
             dims_tmp, agg_cols, aggs_txt, 
             self.q_engine)
         self.s_eval = SumEvaluator()
+        self.props_to_rewards = {}
         
         self.agg_graph = EmbeddingGraph(agg_cols, degree)
         self.all_preds = all_preds
@@ -151,27 +152,25 @@ class PickingEnv(gym.Env):
         self.nr_t_steps = 0
         self.reset()
         self._evaluate()
-    
-    def best_summary(self):
-        """ Returns data summary with highest reward. """
-        return max(self.text_to_reward, key=self.text_to_reward.get)
-    
-    def topk_summaries(self, k, best):
-        """ Returns the top-k data summaries.
-        
-        Args:
-            k: retrieve that many summaries
-            best: return best (not worst) summaries
+
+    def reset(self):
+        """ Reset data summary to default. """
+        self.nr_ep_steps = 0
+        for fact in self.cur_facts:
+            fact.reset()
             
+        return self._observe()
+    
+    def statistics(self):
+        """ Returns performance statistics. 
+        
         Returns:
-            returns up to k summaries with rewards
+            Dictionary with performance statistics
         """
-        sorted_sums = sorted(self.text_to_reward.items(), 
-                             key=lambda s: s[1], reverse=best)
-        if len(self.text_to_reward) < k:
-            return sorted_sums
-        else:
-            return sorted_sums[0:k]
+        stats = self.q_engine.statistics().copy()
+        stats.update(self.s_gen.statistics())
+        stats.update(self.s_eval.statistics())
+        return stats
 
     def step(self, action):
         """ Change fact or trigger evaluation. """
@@ -200,30 +199,13 @@ class PickingEnv(gym.Env):
             reward = self._evaluate()
         
         return self._observe(), reward, done, {}
-        
-    def reset(self):
-        """ Reset data summary to default. """
-        self.nr_ep_steps = 0
-        for fact in self.cur_facts:
-            fact.reset()
-            
-        return self._observe()
-    
-    def statistics(self):
-        """ Returns performance statistics. 
-        
-        Returns:
-            Dictionary with performance statistics
-        """
-        stats = self.q_engine.statistics().copy()
-        stats.update(self.s_gen.statistics())
-        stats.update(self.s_eval.statistics())
-        return stats
-    
+
     def _evaluate(self):
         """ Evaluate quality of current summary. """
         text = self.s_gen.generate(self.cur_facts)
-        return self.s_eval.evaluate(text)
+        reward = self.s_eval.evaluate(text)
+        self._save_reward(reward)
+        return reward
 
     def _observe(self):
         """ Returns observations for learning agent. """
@@ -323,3 +305,13 @@ class PickingEnv(gym.Env):
                 keep_vals += [val]
         
         return keep_vals
+    
+    def _save_reward(self, reward):
+        """ Store reward of current fact combination. 
+        
+        Args:
+            reward: received for current facts
+        """
+        fact_tuples = [tuple(f.props) for f in self.cur_facts]
+        speech_tuple = tuple(fact_tuples)
+        self.props_to_rewards[speech_tuple] = reward

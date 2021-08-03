@@ -17,6 +17,24 @@ class Fact():
         """
         self.nr_preds = nr_preds
         self.nr_props = nr_preds + 1
+        self.reset()
+
+    @staticmethod
+    def from_props(props):
+        """ Initializes new fact from properties.
+        
+        Args:
+            props: fact properties
+            
+        Returns:
+            new fact with given properties
+        """
+        nr_preds = len(props) - 1
+        fact = Fact(nr_preds)
+        for p_id, val in enumerate(props):
+            fact.change(p_id, val)
+        
+        return fact
 
     def change(self, prop_id, new_val):
         """ Change fact property to new value. 
@@ -54,7 +72,6 @@ class Fact():
             pred_cnt: number of possible predicates
             agg_cnt: number of possible aggregates
         """
-        self.reset()
         for prop_id in range(self.nr_props):
             ub = agg_cnt if self.is_agg(prop_id) else pred_cnt
             self.props[prop_id] = random.randint(0, ub-1)
@@ -63,7 +80,7 @@ class Fact():
         """ Reset properties to default values. """
         self.props = [0] * self.nr_props
 
-    
+
 def fact_txt(fact, preamble, dim_cols, all_preds, 
              dims_tmp, agg_cols, q_engine, aggs_txt):
     """ Generate text describing fact. 
