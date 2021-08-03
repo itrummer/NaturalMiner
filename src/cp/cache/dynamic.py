@@ -4,7 +4,7 @@ Created on Jul 31, 2021
 @author: immanueltrummer
 '''
 from cp.cache.common import AggCache
-from cp.pred import pred_sql
+from cp.pred import sql_esc, pred_sql
 from dataclasses import dataclass
 from typing import FrozenSet, Tuple
 import logging
@@ -291,9 +291,8 @@ class DynamicCache(AggCache):
         w_parts = []
         for s_d, s_vals in view.scope:
             if s_d in view.dim_cols:
-                c_parts = [pred_sql(s_d, v) for v in s_vals]
-                if c_parts:
-                    w_parts += ['(' + ' or '.join(c_parts) + ')']
+                esc_s_vals = [sql_esc(v) for v in s_vals]
+                w_parts += [s_d + ' in (' + ', '.join(esc_s_vals) + ')']
 
         if w_parts:
             return ' where ' + ' and '.join(w_parts)

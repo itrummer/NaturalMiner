@@ -26,6 +26,17 @@ def all_preds(connection, table, dim_cols, cmp_pred):
             preds += [(dim, r[0]) for r in result]
     return preds
 
+def sql_esc(raw):
+    """ Escapes SQL special symbols. 
+    
+    Args:
+        raw: non-escaped SQL string
+        
+    Returns:
+        escaped SQL string
+    """
+    return str(raw).replace("'", r"''")
+
 def is_pred(pred):
     """ Checks if tuple represents predicate. 
     
@@ -47,5 +58,5 @@ def pred_sql(col, val):
     Returns:
         predicate as SQL string (escaped)
     """
-    esc_val = str(val).replace("'", r"''")
+    esc_val = sql_esc(val)
     return f"{col}='{esc_val}'"
