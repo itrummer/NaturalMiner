@@ -99,6 +99,7 @@ def run_sampling(connection, test_case, all_preds):
     """
     start_s = time.time()
     
+    test_case = test_case.copy()
     full_table = test_case['table']
     table_sample = f'(select * from {full_table} limit 10000) as S'
     test_case['table'] = table_sample
@@ -142,7 +143,7 @@ def run_sampling(connection, test_case, all_preds):
     p_stats.update(s_gen.statistics())
     p_stats.update(s_eval.statistics())
     
-    return env.s_eval.text_to_reward, p_stats
+    return s_eval.text_to_reward, p_stats
 
 def run_random(connection, test_case, all_preds, nr_sums, timeout_s):
     """ Run simple random generation baseline.
