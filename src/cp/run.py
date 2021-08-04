@@ -145,6 +145,7 @@ def run_sampling(connection, test_case, all_preds):
     
     return s_eval.text_to_reward, p_stats
 
+
 def run_random(connection, test_case, all_preds, nr_sums, timeout_s):
     """ Run simple random generation baseline.
     
@@ -234,7 +235,9 @@ def main():
         file.write('scenario\ttestcase\tnrfacts\tnrpreds\t' \
                    'approach\tbest\tbquality\tworst\twquality\t'\
                    'time\tetime\tchits\tcmisses\n')
-        with psycopg2.connect(database=db, user=user) as connection:
+        with psycopg2.connect(
+            database=db, user=user, 
+            cursor_factory=psycopg2.extras.RealDictCursor) as connection:
             connection.autocommit = True
             
             test_batches = cp.bench.generate_testcases()

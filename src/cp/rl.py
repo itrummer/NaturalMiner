@@ -5,7 +5,7 @@ Created on Jun 5, 2021
 '''
 from collections import defaultdict
 from cp.cache.common import AggQuery
-from cp.cache.dynamic import View
+from cp.cache.dynamic import View, DynamicCache
 from cp.fact import Fact
 from cp.pred import is_pred
 from cp.query import QueryEngine
@@ -279,32 +279,6 @@ class PickingEnv(gym.Env):
         v = View(self.table, rel_dims, self.cmp_pred, rel_aggs, scope)
         logging.debug(f'Proactive caching selects {v}')
         self.cache.put_results(v)
-        
-    def _prune_vals(self, dim, vals, aggs):
-        """ Prune out values for which all aggregates are cached.
-        
-        Args:
-            dim: dimension column
-            vals: values in dimension column to prune
-            aggs: relevant aggregation columns
-        
-        Returns:
-            subset of values for which not all aggregates are cached
-        """
-        keep_vals = []
-        for val in vals:
-            cached = True
-            for agg in aggs:
-                eq_preds = frozenset([(dim, val)])
-                query = AggQuery(self.table, eq_preds, self.cmp_pred, agg)
-                if not self.cache.can_answer(query):
-                    cached = False
-                    break
-            
-            if not cached:
-                keep_vals += [val]
-        
-        return keep_vals
     
     def _save_reward(self, reward):
         """ Store reward of current fact combination. 
