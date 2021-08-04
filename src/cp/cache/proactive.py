@@ -144,6 +144,12 @@ class ProCache(AggCache):
                                      self.cmp_pred, agg)
                         rel_avg = (cmp_s/cmp_c)/(s/c)
                         self.q_to_r[q] = rel_avg
+                        
+        for agg in aggs:
+            for p_group in preds:
+                q = AggQuery(self.table, frozenset(p_group), self.cmp_pred, agg)
+                if not self.can_answer(q):
+                    self.q_to_r[q] = None
     
     def _query_probs(self, max_steps):
         """ Calculates probability that facts become relevant in few steps.
