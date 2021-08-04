@@ -79,8 +79,11 @@ class ProCache(AggCache):
             if not self.can_answer(query):
                 
                 p_q_probs = list(filter(lambda q:self.can_answer(q), q_probs))
+                logging.debug(f'Query probs: {p_q_probs}')
                 r_aggs = self._rank_aggs(p_q_probs)
+                logging.debug(f'Ranked aggregates: {r_aggs}')
                 r_preds = self._rank_preds(p_q_probs, query)
+                logging.debug(f'Ranked predicates: {r_preds}')
                 
                 aggs = {query.agg_col}
                 preds = {frozenset(query.eq_preds)}
@@ -88,6 +91,8 @@ class ProCache(AggCache):
                 n_preds = min(len(r_preds), 5)
                 aggs.update(r_aggs[0:n_aggs])
                 preds.update(r_preds[0:n_preds])
+                logging.debug(f'Selected aggs: {aggs}')
+                logging.debug(f'Selected preds: {preds}')
                 self._cache(aggs, preds)
     
     def _cache(self, aggs, preds):
