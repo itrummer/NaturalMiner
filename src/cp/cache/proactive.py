@@ -137,7 +137,7 @@ class ProCache(AggCache):
                 c = r['c']
                 for agg in aggs:
                     s = r[f's_{agg}']
-                    if s > 0:
+                    if s is not None and s > 0:
                         cmp_s = r[f'cmp_s_{agg}']
                         eq_preds = [(d, r[d]) for d in dims]
                         q = AggQuery(self.table, frozenset(eq_preds), 
