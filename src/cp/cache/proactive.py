@@ -78,7 +78,8 @@ class ProCache(AggCache):
             query = self._props_query(fact.props)
             if not self.can_answer(query):
                 
-                p_q_probs = list(filter(lambda q:self.can_answer(q), q_probs))
+                p_q_probs = list(filter(
+                    lambda q:not self.can_answer(q), q_probs))
                 logging.debug(f'Query probs: {p_q_probs}')
                 r_aggs = self._rank_aggs(p_q_probs)
                 logging.debug(f'Ranked aggregates: {r_aggs}')
