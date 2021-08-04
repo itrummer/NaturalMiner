@@ -293,10 +293,10 @@ class ProCache(AggCache):
         w_parts = []
         for p_group in preds:
             if p_group:
-                c_pred = ' or '.join([pred_sql(p, v) for p, v in p_group])
+                c_pred = ' and '.join([pred_sql(p, v) for p, v in p_group])
                 w_parts += ['(' + c_pred + ')']
 
         if w_parts:
-            return ' where ' + ' and '.join(w_parts)
+            return ' where ' + ' or '.join(w_parts)
         else:
             return ''
