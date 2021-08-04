@@ -23,7 +23,7 @@ def all_preds(connection, table, dim_cols, cmp_pred):
                 f'where {cmp_pred} and {dim} is not null'
             cursor.execute(query)
             result = cursor.fetchall()
-            preds += [(dim, r[0]) for r in result]
+            preds += [(dim, r[dim]) for r in result]
     return preds
 
 def sql_esc(raw):

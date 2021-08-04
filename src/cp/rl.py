@@ -6,6 +6,9 @@ Created on Jun 5, 2021
 from collections import defaultdict
 from cp.cache.common import AggQuery
 from cp.cache.dynamic import View, DynamicCache
+import cp.cache.dynamic
+import cp.cache.static
+import cp.cache.proactive
 from cp.fact import Fact
 from cp.pred import is_pred
 from cp.query import QueryEngine
@@ -87,7 +90,7 @@ class PickingEnv(gym.Env):
     def __init__(self, connection, table, dim_cols, 
                  agg_cols, cmp_pred, nr_facts, nr_preds,
                  degree, max_steps, preamble, dims_tmp, 
-                 aggs_txt, all_preds, cache, proactive):
+                 aggs_txt, all_preds, c_type):
         """ Read database to initialize environment. 
         
         Args:
@@ -104,8 +107,7 @@ class PickingEnv(gym.Env):
             dims_tmp: assigns each dimension to text template
             aggs_txt: assigns each aggregate to text snippet
             all_preds: all possible predicates
-            cache: caches query results
-            proactive: whether to cache proactively
+            c_type: type of cache to create
         """
         super(PickingEnv, self).__init__()
         self.connection = connection
@@ -120,10 +122,32 @@ class PickingEnv(gym.Env):
         self.preamble = preamble
         self.dims_tmp = dims_tmp
         self.aggs_txt = aggs_txt
-        self.cache = cache
-        self.proactive = proactive
-        self.q_engine = QueryEngine(
-            connection, table, cmp_pred, cache)
+        
+        self.agg_graph = EmbeddingGraph(agg_cols, degree)
+        self.all_preds = all_preds
+        pred_labels = [f'{p} is {v}' for p, v in self.all_preds]
+        self.pred_graph = EmbeddingGraph(pred_labels, degree)
+        
+        if c_type == 'dynamic':
+            self.cache = cp.cache.dynamic.DynamicCache(connection)
+            self.proactive = False
+        elif c_type == 'empty':
+            self.cache = cp.cache.static.EmptyCache()
+            self.proactive = False
+        elif c_type == 'cube':
+            self.cache = cp.cache.static.CubeCache(
+                connection, table, dim_cols, cmp_pred, agg_cols, 900)
+            self.proactive = False
+        elif c_type == 'proactive':
+            self.cache = cp.cache.proactive.ProCache(
+                connection, table, cmp_pred, nr_facts, 
+                nr_preds, all_preds, self.pred_graph,
+                agg_cols, self.agg_graph)
+            self.proactive = True
+        else:
+            raise ValueError(f'Unknown cache type: {c_type}')
+        self.q_engine = QueryEngine(connection, table, cmp_pred, self.cache)
+
         self.s_gen = SumGenerator(
             all_preds, preamble, dim_cols, 
             dims_tmp, agg_cols, aggs_txt, 
@@ -131,11 +155,6 @@ class PickingEnv(gym.Env):
         self.s_eval = SumEvaluator()
         self.props_to_rewards = {}
         
-        self.agg_graph = EmbeddingGraph(agg_cols, degree)
-        self.all_preds = all_preds
-        pred_labels = [f'{p} is {v}' for p, v in self.all_preds]
-        self.pred_graph = EmbeddingGraph(pred_labels, degree)
-
         self.cur_facts = []
         for _ in range(nr_facts):
             self.cur_facts.append(Fact(nr_preds))
@@ -147,7 +166,7 @@ class PickingEnv(gym.Env):
         self.nr_props = nr_facts * self.props_per_fact
         self.observation_space = spaces.Box(
             low=-10, high=10, shape=(self.nr_props, 384), dtype=np.float32)
-        
+    
         self.eval_s = 0
         self.nr_t_steps = 0
         self.reset()
@@ -195,7 +214,8 @@ class PickingEnv(gym.Env):
             
             done = False
             if self.proactive:
-                self._proactive_caching()
+                self.cache.set_cur_facts(self.cur_facts)
+            self.cache.update()
             reward = self._evaluate()
         
         return self._observe(), reward, done, {}

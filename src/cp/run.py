@@ -6,7 +6,6 @@ Created on Jun 6, 2021
 import argparse
 import cp.base
 import cp.bench
-import cp.cache.dynamic
 import cp.cache.static
 import cp.fact
 import cp.query
@@ -14,6 +13,7 @@ import cp.rl
 import cp.sum
 import logging
 import psycopg2
+from psycopg2.extras import RealDictCursor
 import time
 
 from stable_baselines3 import A2C, PPO
@@ -38,41 +38,21 @@ def print_details(env):
         print(f'{f}')
 
 
-def run_rl(connection, test_case, all_preds, nr_samples, c_type, c_freq):
+def run_rl(connection, test_case, all_preds, nr_samples, c_type):
     """ Benchmarks primary method on test case.
     
     Args:
         connection: connection to database
         test_case: describes test case
         all_preds: ordered predicates
-        nr_samples: number of iterations
-        cache_freq: frequency of cache updates
+        c_type: type of cache to create
         
     Returns:
         summaries with reward, performance statistics
     """
     start_s = time.time()
-    
-    table = test_case['table']
-    if c_type == 'dynamic':
-        cache = cp.cache.dynamic.DynamicCache(connection)
-        proactive = True
-    elif c_type == 'empty':
-        cache = cp.cache.static.EmptyCache()
-        proactive = False
-    elif c_type == 'cube':
-        dim_cols = test_case['dim_cols']
-        cmp_pred = test_case['cmp_pred']
-        agg_cols = test_case['agg_cols']
-        cache = cp.cache.static.CubeCache(
-            connection, table, dim_cols, cmp_pred, agg_cols, 900)
-        proactive = False
-    else:
-        raise ValueError(f'Unknown cache type: {c_type}')
-    
     env = cp.rl.PickingEnv(
-        connection, **test_case, all_preds=all_preds, 
-        cache=cache, proactive=proactive)
+        connection, **test_case, all_preds=all_preds, c_type=c_type)
     model = A2C(
         'MlpPolicy', env, verbose=True, 
         gamma=1.0, normalize_advantage=True)
@@ -235,15 +215,14 @@ def main():
         file.write('scenario\ttestcase\tnrfacts\tnrpreds\t' \
                    'approach\tbest\tbquality\tworst\twquality\t'\
                    'time\tetime\tchits\tcmisses\n')
-        with psycopg2.connect(
-            database=db, user=user, 
-            cursor_factory=psycopg2.extras.RealDictCursor) as connection:
+        with psycopg2.connect(database=db, user=user, 
+                              cursor_factory=RealDictCursor) as connection:
             connection.autocommit = True
             
             test_batches = cp.bench.generate_testcases()
             for b_id, b in enumerate(test_batches):
-                if b_id < 1:
-                    continue
+                # if b_id < 1:
+                    # continue
                 for t_id, t in enumerate(b):
                     for nr_facts in [1, 2, 3]:
                         for nr_preds in [1, 2, 3]:
@@ -257,16 +236,16 @@ def main():
                             t['nr_facts'] = nr_facts
                             t['nr_preds'] = nr_preds
                             
-                            sums, p_stats = run_sampling(
-                                connection, t, all_preds)
-                            log_line(
-                                file, b_id, t_id, nr_facts, nr_preds, 
-                                'sample', sums, p_stats)
+                            # sums, p_stats = run_sampling(
+                                # connection, t, all_preds)
+                            # log_line(
+                                # file, b_id, t_id, nr_facts, nr_preds, 
+                                # 'sample', sums, p_stats)
                             
-                            for c_type in ['empty']:
+                            for c_type in ['proactive']:
                                 sums, p_stats = run_rl(
                                     connection, t, all_preds, 
-                                    nr_samples, c_type, 20)
+                                    nr_samples, c_type)
                                 log_line(
                                     file, b_id, t_id, nr_facts, nr_preds, 
                                     'rl' + c_type, sums, p_stats)

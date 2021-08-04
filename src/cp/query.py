@@ -39,7 +39,7 @@ class QueryEngine():
         Returns:
             Average over aggregation column for satisfying rows
         """
-        q_parts = [f'select avg({agg_col}) from {self.table} where TRUE'] 
+        q_parts = [f'select avg({agg_col}) as avg from {self.table} where TRUE'] 
         q_parts += [pred_sql(col=c, val=v) for c, v in eq_preds]
         q_parts += [pred]
         query = ' AND '.join(q_parts)
@@ -47,7 +47,7 @@ class QueryEngine():
         with self.connection.cursor() as cursor:
             logging.debug(f'About to execute query {query}')
             cursor.execute(query)
-            avg = cursor.fetchone()[0]
+            avg = cursor.fetchone()['avg']
             
         return avg
     
@@ -61,7 +61,7 @@ class QueryEngine():
         Returns:
             Ratio of entity to general average
         """
-        query = AggQuery(self.table, eq_preds, 
+        query = AggQuery(self.table, frozenset(eq_preds), 
                          self.cmp_pred, agg_col)
         
         if self.q_cache.can_answer(query):

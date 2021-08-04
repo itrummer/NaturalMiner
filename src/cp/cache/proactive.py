@@ -13,24 +13,32 @@ import time
 class ProCache(AggCache):
     """ Implements pro-active caching for RL approach. """
     
-    def __init__(self, table, cmp_pred, nr_facts, 
-                 nr_preds, all_preds, agg_cols):
+    def __init__(self, connection, table, cmp_pred, 
+                 nr_facts, nr_preds, all_preds, pred_graph,
+                 agg_cols, agg_graph):
         """ Initializes proactive cache.
         
         Args:
+            connection: connection to database
             table: name of source table
             cmp_pred: predicate used for comparisons
             nr_facts: number of facts per summary
             nr_preds: number of predicates per fact
             all_preds: list of predicates
+            pred_graph: graph of query predicates
             agg_cols: list of aggregation columns
+            agg_graph: graph of query aggregates
         """
+        self.connection = connection
         self.table = table
         self.cmp_pred = cmp_pred
         self.nr_facts = nr_facts
         self.nr_preds = nr_preds
+        self.nr_props = nr_preds + 1
         self.all_preds = all_preds
+        self.pred_graph = pred_graph
         self.agg_cols = agg_cols
+        self.agg_graph = agg_graph
         self.q_to_r = {}
     
     def can_answer(self, query):
@@ -65,7 +73,7 @@ class ProCache(AggCache):
 
     def update(self):
         """ Proactively cache results close to current facts. """
-        q_probs = [(q, p) for q, p in self._fact_probs(1).items()]
+        q_probs = [(q, p) for q, p in self._query_probs(1).items()]
         for fact in self.cur_facts:
             query = self._props_query(fact.props)
             if not self.can_answer(query):
@@ -91,8 +99,8 @@ class ProCache(AggCache):
         """
         q_parts = [self._sql_select(aggs, preds)]
         q_parts += [f' from {self.table}']
-        q_parts += [self._sql_where(aggs, preds)]
-        q_parts += [self._sql_group(aggs, preds)]
+        q_parts += [self._sql_where(preds)]
+        q_parts += [self._sql_group(preds)]
         sql = ' '.join(q_parts)
         logging.debug(f'About to fill cache with SQL "{sql}"')
         
@@ -102,7 +110,7 @@ class ProCache(AggCache):
             total_s = time.time() - start_s
             logging.debug(f'Time: {total_s} s for query {sql}')
             rows = cursor.fetchall()
-            self._extract_results(rows)
+            self._extract_results(aggs, preds, rows)
     
     def _extract_results(self, aggs, preds, rows):
         """ Extracts new cache entries from query result.
@@ -113,7 +121,7 @@ class ProCache(AggCache):
             rows: result rows of caching query
         """
         if preds:
-            dims = {p[0] for p in preds[0]}
+            dims = {p[0] for p in next(iter(preds))}
         else:
             dims = {}
 
@@ -126,7 +134,8 @@ class ProCache(AggCache):
                     if s > 0:
                         cmp_s = r[f'cmp_s_{agg}']
                         eq_preds = [(d, r[d]) for d in dims]
-                        q = AggQuery(self.table, eq_preds, self.cmp_pred, agg)
+                        q = AggQuery(self.table, frozenset(eq_preds), 
+                                     self.cmp_pred, agg)
                         rel_avg = (cmp_s/cmp_c)/(s/c)
                         self.q_to_r[q] = rel_avg
     
@@ -151,6 +160,8 @@ class ProCache(AggCache):
                 
                 for s_props, s_prob in p_last.items():
                     for prop in range(self.nr_props):
+                        # print(f'nr_props: {self.nr_props}')
+                        # print(f's_props: {s_props}')
                         val = s_props[prop]
                         if prop == self.nr_preds:
                             n_vals = self.agg_graph.get_reachable(val, 1)
@@ -158,8 +169,9 @@ class ProCache(AggCache):
                             n_vals = self.pred_graph.get_reachable(val, 1)
                         
                         for n_val in n_vals:
-                            n_props = s_props.copy()
+                            n_props = [p for p in s_props]
                             n_props[prop] = n_val
+                            n_props = tuple(n_props)
                             val_prob = 1.0/len(n_vals)
                             t_prob = s_prob * fact_prob * val_prob
                             p_next[n_props] += t_prob
@@ -185,19 +197,19 @@ class ProCache(AggCache):
         eq_preds = [self.all_preds[p] for p in fact.get_preds()]
         eq_preds = list(filter(lambda p:is_pred(p), eq_preds))
         agg_col = self.agg_cols[fact.get_agg()]
-        return AggQuery(self.table, eq_preds, self.cmp_pred, agg_col)
+        return AggQuery(self.table, frozenset(eq_preds), self.cmp_pred, agg_col)
     
     def _rank_aggs(self, q_probs):
         """ Rank aggregates by their probability.
         
         Args:
-            q_probs: assigns queries to probability
+            q_probs: pairs of queries and probabilities
             
         Returns:
             list of aggregates ordered by probability (descending)
         """
         p_agg = defaultdict(lambda:0)
-        for q, p in q_probs.items():
+        for q, p in q_probs:
             agg = q.agg_col
             p_agg[agg] += p
             
@@ -207,7 +219,7 @@ class ProCache(AggCache):
         """ Rank query-compatible predicates based on probabilities.
         
         Args:
-            q_probs: queries with associated probabilities
+            q_probs: pairs of queries and probabilities
             query: rank predicates with same signature as in query
         
         Returns:
@@ -215,7 +227,7 @@ class ProCache(AggCache):
         """
         q_dims = query.pred_cols()
         p_pred = defaultdict(lambda:0)
-        for q, p in q_probs.items():
+        for q, p in q_probs:
             p_dims = q.pred_cols()
             if p_dims == q_dims:
                 preds = frozenset(q.eq_preds)
@@ -238,7 +250,7 @@ class ProCache(AggCache):
                     'else 0 end) as cmp_c']
         
         if preds:
-            pred_cols = {p[0] for p in preds[0]}
+            pred_cols = {p[0] for p in next(iter(preds))}
             s_parts += list(pred_cols)
         
         for agg_col in aggs:
@@ -258,10 +270,10 @@ class ProCache(AggCache):
             SQL group-by clause for query
         """
         if preds:
-            dim_cols = {p[0] for p in preds}
-            return 'group by ' + ', '.join(dim_cols)
-        else:
-            return ''
+            dim_cols = {p[0] for p in next(iter(preds))}
+            if dim_cols:
+                return 'group by ' + ', '.join(dim_cols)
+        return ''
     
     def _sql_where(self, preds):
         """ Generates where clause of cache query.
@@ -275,7 +287,7 @@ class ProCache(AggCache):
         w_parts = []
         for p_group in preds:
             if p_group:
-                c_pred = ' or '.join([pred_sql(p) for p in p_group])
+                c_pred = ' or '.join([pred_sql(p, v) for p, v in p_group])
                 w_parts += ['(' + c_pred + ')']
 
         if w_parts:

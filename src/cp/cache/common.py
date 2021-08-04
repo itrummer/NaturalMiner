@@ -6,14 +6,14 @@ Created on Jul 31, 2021
 from abc import ABC, abstractmethod
 from cp.pred import is_pred
 from dataclasses import dataclass
-from typing import List, Tuple
+from typing import FrozenSet, Tuple
 
-@dataclass
+@dataclass(frozen=True)
 class AggQuery():
     """ Represents a simple aggregation query. """
     
     table: str
-    eq_preds: List[Tuple[str, str]]
+    eq_preds: FrozenSet[Tuple[str, str]]
     cmp_pred: str
     agg_col: str
         
