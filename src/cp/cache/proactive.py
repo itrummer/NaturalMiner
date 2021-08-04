@@ -90,8 +90,8 @@ class ProCache(AggCache):
                 preds = {frozenset(query.eq_preds)}
                 n_aggs = min(len(r_aggs), 3)
                 n_preds = min(len(r_preds), 5)
-                aggs.update(r_aggs[0:n_aggs])
-                preds.update(r_preds[0:n_preds])
+                aggs += [a[0] for a in r_aggs[0:n_aggs]]
+                preds += [p[0] for p in r_preds[0:n_preds]]
                 logging.debug(f'Selected aggs: {aggs}')
                 logging.debug(f'Selected preds: {preds}')
                 self._cache(aggs, preds)
