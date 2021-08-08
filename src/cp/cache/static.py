@@ -7,6 +7,7 @@ from cp.cache.common import AggCache
 from cp.sql.pred import is_pred, pred_sql
 import logging
 import time
+from psycopg2._psycopg import QueryCanceledError
 
 class EmptyCache(AggCache):
     """ Dummy cache that remains empty. """
@@ -118,6 +119,9 @@ class CubeCache(AggCache):
             try:
                 cursor.execute(sql)
                 success = True
+            except QueryCanceledError:
+                logging.debug('Timeout while creating cube.')
+                success = False
             finally:
                 cursor.execute('set statement_timeout = 0')
         total_s = time.time() - start_s
