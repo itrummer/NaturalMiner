@@ -4,9 +4,9 @@ Created on Jul 21, 2021
 @author: immanueltrummer
 '''
 import cp.cache.static
-import cp.fact
-import cp.query
-import cp.sum
+import cp.text.fact
+import cp.sql.query
+import cp.text.sum
 import time
 import torch
 
@@ -48,12 +48,12 @@ def rand_sums(
     """
     start_s = time.time()
     cache = cp.cache.static.EmptyCache()
-    q_engine = cp.query.QueryEngine(
+    q_engine = cp.sql.query.QueryEngine(
         connection, table, cmp_pred, cache)
-    s_gen = cp.sum.SumGenerator(
+    s_gen = cp.text.sum.SumGenerator(
         all_preds, preamble, dim_cols, dims_tmp, 
         agg_cols, aggs_txt, q_engine)
-    s_eval = cp.sum.SumEvaluator()
+    s_eval = cp.text.sum.SumEvaluator()
 
     pred_cnt = len(all_preds)
     agg_cnt = len(agg_cols)
@@ -65,7 +65,7 @@ def rand_sums(
         
         facts = []
         for _ in range(nr_facts):
-            fact = cp.fact.Fact(nr_preds)
+            fact = cp.text.fact.Fact(nr_preds)
             fact.random_init(pred_cnt=pred_cnt, agg_cnt=agg_cnt)
             facts.append(fact)
     
@@ -117,7 +117,7 @@ def gen_rl(timeout_s, **kwargs):
     r_params = kwargs.copy()
     r_params['nr_facts'] = 10
     r_params['nr_preds'] = 1
-    s_eval = cp.sum.SumEvaluator()
+    s_eval = cp.text.sum.SumEvaluator()
     start_s = time.time()
     t_to_q = {}
     eval_total_s = 0

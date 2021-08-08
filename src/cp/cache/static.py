@@ -4,7 +4,7 @@ Created on Jul 31, 2021
 @author: immanueltrummer
 '''
 from cp.cache.common import AggCache
-from cp.pred import is_pred, pred_sql
+from cp.sql.pred import is_pred, pred_sql
 import logging
 import time
 

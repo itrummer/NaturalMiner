@@ -3,7 +3,7 @@ Created on Jul 22, 2021
 
 @author: immanueltrummer
 '''
-import cp.fact
+import cp.text.fact
 import logging
 import time
 import transformers
@@ -50,7 +50,7 @@ class SumGenerator():
             if f_id in self.fact_to_text:
                 f_txt = self.fact_to_text[f_id]
             else:
-                f_txt = cp.fact.fact_txt(
+                f_txt = cp.text.fact.fact_txt(
                     fact, preamble=self.preamble, dim_cols=self.dim_cols, 
                     all_preds=self.all_preds, dims_tmp=self.dims_tmp, 
                     agg_cols=self.agg_cols, q_engine=self.q_engine, 

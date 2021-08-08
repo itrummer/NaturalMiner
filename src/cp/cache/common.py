@@ -4,27 +4,6 @@ Created on Jul 31, 2021
 @author: immanueltrummer
 '''
 from abc import ABC, abstractmethod
-from cp.pred import is_pred
-from dataclasses import dataclass
-from typing import FrozenSet, Tuple
-
-@dataclass(frozen=True)
-class AggQuery():
-    """ Represents a simple aggregation query. """
-    
-    table: str
-    eq_preds: FrozenSet[Tuple[str, str]]
-    cmp_pred: str
-    agg_col: str
-        
-    def pred_cols(self):
-        """ Returns columns of query predicates. 
-        
-        Returns:
-            frozen set with predicate columns
-        """
-        return frozenset([p[0] for p in self.eq_preds if is_pred(p)])
-
 
 class AggCache(ABC):
     """ Common superclass for all cache types. """

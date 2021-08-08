@@ -4,15 +4,14 @@ Created on Jun 5, 2021
 @author: immanueltrummer
 '''
 from collections import defaultdict
-from cp.cache.common import AggQuery
-from cp.cache.dynamic import View, DynamicCache
+from cp.sql.query import AggQuery
 import cp.cache.dynamic
 import cp.cache.static
 import cp.cache.proactive
-from cp.fact import Fact
-from cp.pred import is_pred
-from cp.query import QueryEngine
-from cp.sum import SumGenerator, SumEvaluator
+from cp.text.fact import Fact
+from cp.sql.pred import is_pred
+from cp.sql.query import QueryEngine
+from cp.text.sum import SumGenerator, SumEvaluator
 from gym import spaces
 from sentence_transformers import SentenceTransformer, util
 import gym
@@ -296,9 +295,7 @@ class PickingEnv(gym.Env):
                 return
 
         # construct view for caching
-        v = View(self.table, rel_dims, self.cmp_pred, rel_aggs, scope)
-        logging.debug(f'Proactive caching selects {v}')
-        self.cache.put_results(v)
+        self.cache.cache(rel_aggs, scope)
     
     def _save_reward(self, reward):
         """ Store reward of current fact combination. 

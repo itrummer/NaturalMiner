@@ -4,20 +4,20 @@ Created on Jun 6, 2021
 @author: immanueltrummer
 '''
 import argparse
-import cp.base
+import cp.algs.base
 import cp.bench
 import cp.cache.static
-import cp.fact
-import cp.query
-import cp.rl
-import cp.sum
+import cp.text.fact
+import cp.sql.query
+import cp.algs.rl
+import cp.text.sum
 import logging
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import time
 
 from stable_baselines3 import A2C, PPO
-from cp.pred import all_preds
+from cp.sql.pred import all_preds
 
 def print_details(env):
     """ Prints details about RL results.
@@ -51,7 +51,7 @@ def run_rl(connection, test_case, all_preds, nr_samples, c_type):
         summaries with reward, performance statistics
     """
     start_s = time.time()
-    env = cp.rl.PickingEnv(
+    env = cp.algs.rl.PickingEnv(
         connection, **test_case, all_preds=all_preds, c_type=c_type)
     model = A2C(
         'MlpPolicy', env, verbose=True, 
@@ -85,7 +85,7 @@ def run_sampling(connection, test_case, all_preds):
     test_case['table'] = table_sample
     
     cache = cp.cache.static.EmptyCache()    
-    env = cp.rl.PickingEnv(
+    env = cp.algs.rl.PickingEnv(
         connection, **test_case, all_preds=all_preds, 
         cache=cache, proactive=False)
     model = A2C(
@@ -102,15 +102,15 @@ def run_sampling(connection, test_case, all_preds):
     dims_tmp = test_case['dims_tmp']
     agg_cols = test_case['agg_cols']
     aggs_txt = test_case['aggs_txt']
-    q_engine = cp.query.QueryEngine(
+    q_engine = cp.sql.query.QueryEngine(
         connection, full_table, cmp_pred, cache)
-    s_gen = cp.sum.SumGenerator(
+    s_gen = cp.text.sum.SumGenerator(
         all_preds, preamble, dim_cols, 
         dims_tmp, agg_cols, aggs_txt, 
         q_engine)
-    s_eval = cp.sum.SumEvaluator()
+    s_eval = cp.text.sum.SumEvaluator()
     
-    best_facts = [cp.fact.Fact.from_props(p) for p in best_props]
+    best_facts = [cp.text.fact.Fact.from_props(p) for p in best_props]
     text = s_gen.generate(best_facts)
     reward = s_eval.evaluate(text)
     logging.debug(f'Best speech "{text}" with reward {reward}')
@@ -139,7 +139,7 @@ def run_random(connection, test_case, all_preds, nr_sums, timeout_s):
     Returns:
         summaries with quality, performance statistics
     """
-    return cp.base.rand_sums(
+    return cp.algs.base.rand_sums(
         nr_sums=nr_sums, timeout_s=timeout_s, 
         connection=connection, all_preds=all_preds,
         **test_case)
@@ -157,7 +157,7 @@ def run_gen(connection, test_case, all_preds, timeout_s):
     Returns:
         summaries with quality, performance statistics
     """
-    return cp.base.gen_rl(
+    return cp.algs.base.gen_rl(
         timeout_s=timeout_s, connection=connection, 
         all_preds=all_preds, **test_case)
 
@@ -230,7 +230,7 @@ def main():
                             print(f'Next: B{b_id}/T{t_id}; ' \
                                   f'{nr_facts}F, {nr_preds}P')
                             
-                            all_preds = cp.pred.all_preds(
+                            all_preds = cp.sql.pred.all_preds(
                                 connection, t['table'], 
                                 t['dim_cols'], t['cmp_pred'])
                             t['nr_facts'] = nr_facts

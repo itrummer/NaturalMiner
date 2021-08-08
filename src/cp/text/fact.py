@@ -3,7 +3,7 @@ Created on Jul 21, 2021
 
 @author: immanueltrummer
 '''
-from cp.pred import is_pred
+from cp.sql.pred import is_pred
 import random
 
 class Fact():
