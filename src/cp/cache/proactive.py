@@ -4,7 +4,8 @@ Created on Aug 4, 2021
 @author: immanueltrummer
 '''
 from collections import defaultdict
-from cp.sql.query import AggQuery
+from cp.sql.cost import estimates
+from cp.sql.query import AggQuery, GroupQuery
 from cp.cache.dynamic import DynamicCache
 from cp.text.fact import Fact
 import logging
@@ -53,26 +54,117 @@ class ProCache(DynamicCache):
         q_probs = [(q, p) for q, p in self._query_probs(1).items()]
         for fact in self.cur_facts:
             query = self._props_query(fact.props)
-            
             if not self.can_answer(query):
-                p_q_probs = list(filter(
-                    lambda q:not self.can_answer(q), q_probs))
-                logging.debug(f'Query probs: {p_q_probs}')
-                r_aggs = self._rank_aggs(p_q_probs)
-                logging.debug(f'Ranked aggregates: {r_aggs}')
-                r_preds = self._rank_preds(p_q_probs, query)
-                logging.debug(f'Ranked predicates: {r_preds}')
                 
-                aggs = {query.agg_col}
-                preds = {frozenset(query.eq_preds)}
-                n_aggs = min(len(r_aggs), 3)
-                n_preds = min(len(r_preds), 5)
-                aggs.update([a[0] for a in r_aggs[0:n_aggs]])
-                preds.update([p[0] for p in r_preds[0:n_preds]])
-                logging.debug(f'Selected aggs: {aggs}')
-                logging.debug(f'Selected preds: {preds}')
-                self.cache(aggs, preds)
+                u_q_probs = [q_p for q_p in q_probs.items() 
+                             if not self.can_answer(q_p[0])]
+                logging.debug(f'Uncached query probs: {u_q_probs}')
+                r_aggs = self._rank_aggs(u_q_probs)
+                logging.debug(f'Ranked aggregates: {r_aggs}')
+                r_preds = self._rank_preds(u_q_probs, query)
+                logging.debug(f'Ranked predicates: {r_preds}')
+                exp_g_q = self._expand(query, u_q_probs, 1.5)
+                logging.debug(f'Expanded query: {exp_g_q}')
+                self.cache(exp_g_q.aggs, exp_g_q.preds)
     
+    def _coverage(self, g_query, q_probs):
+        """ Probability sum of queries covered by group-by query.
+        
+        Args:
+            g_query: a group-by query covering multiple simple queries
+            q_probs: queries with associated probabilities
+        
+        Returns:
+            sum of probability over all covered queries
+        """
+        agg_prob = 0
+        for q, p in q_probs.items():
+            if g_query.contains(q):
+                agg_prob += p
+        
+        return agg_prob
+    
+    def _expand(self, query, q_probs, max_cost):
+        """ Expands given query under cost constraint.
+        
+        Args:
+            query: expand this query
+            q_probs: other queries to cover with probabilities
+            max_const: maximal relative execution cost
+        
+        Returns:
+            group-by query covering multiple simple queries
+        """
+        r_aggs = self._rank_aggs(q_probs)
+        logging.debug(f'Ranked aggregates: {r_aggs}')
+        r_preds = self._rank_preds(q_probs, query)
+        logging.debug(f'Ranked predicates: {r_preds}')
+        
+        g_query = GroupQuery.from_query(query)
+        g_sql = g_query.sql()
+        _, base_cost = estimates(self.connection, g_sql)
+        
+        max_cover = 0
+        max_exp = None
+        nr_aggs = len(r_aggs)
+        for aggs_ctr in range(nr_aggs):
+            aggs = r_aggs[0:aggs_ctr+1]
+            e_query = GroupQuery.from_query(query)
+            e_query.aggs = aggs
+            
+            for p in r_preds:
+                e_query.preds += [p]
+                e_sql = e_query.sql()
+                _, e_cost = estimates(self.connection, e_sql)
+                if e_cost > max_cost * base_cost:
+                    cover = self._coverage(e_query, q_probs)
+                    if cover > max_cover:
+                        max_cover = cover
+                        max_exp = e_query
+        
+        logging.debug(f'Max cover {max_cover} via {max_exp}')
+        return max_exp
+
+    def _neighbors(self, s_props):
+        """ Generates neighbors in search graph for given properties.
+        
+        Args:
+            s_props: start node in search graph (properties describing fact)
+        
+        Returns:
+            set of neighbors in search graph
+        """
+        neighbors = []
+        for prop in range(self.nr_props):
+            
+            val = s_props[prop]
+            if prop == self.nr_preds:
+                n_vals = self.agg_graph.get_reachable(val, 1)
+            else:
+                n_vals = self.pred_graph.get_reachable(val, 1)
+            
+            for n_val in n_vals:
+                n_props = [p for p in s_props]
+                n_props[prop] = n_val
+                n_props = tuple(n_props)
+                neighbors.append(n_props)
+        
+        return neighbors
+    
+    def _props_query(self, props):
+        """ Generate aggregation query for property tuple. 
+        
+        Args:
+            props: tuple of properties describing fact
+            
+        Returns:
+            aggregation query associated with fact properties
+        """
+        fact = Fact.from_props(list(props))
+        return AggQuery.from_fact(
+            self.table, self.all_preds, 
+            self.cmp_pred, self.agg_cols, fact)
+
     def _query_probs(self, max_steps):
         """ Calculates probability that facts become relevant in few steps.
         
@@ -92,23 +184,15 @@ class ProCache(DynamicCache):
                 p_next = defaultdict(lambda:0)
                 p_by_step.append(p_next)
                 
-                for s_props, s_prob in p_last.items():
-                    for prop in range(self.nr_props):
-                        # print(f'nr_props: {self.nr_props}')
-                        # print(f's_props: {s_props}')
-                        val = s_props[prop]
-                        if prop == self.nr_preds:
-                            n_vals = self.agg_graph.get_reachable(val, 1)
-                        else:
-                            n_vals = self.pred_graph.get_reachable(val, 1)
-                        
-                        for n_val in n_vals:
-                            n_props = [p for p in s_props]
-                            n_props[prop] = n_val
-                            n_props = tuple(n_props)
-                            val_prob = 1.0/len(n_vals)
-                            t_prob = s_prob * fact_prob * val_prob
-                            p_next[n_props] += t_prob
+                for s_props, s_prob in p_last.items():                    
+                    neighbors = self._neighbors(s_props)
+                    logging.debug(f'Neighbors of {s_props}: {neighbors}')
+                    
+                    # Probability of start state, fact selection, and end state
+                    n_prob = 1.0/len(neighbors)
+                    t_prob = s_prob * fact_prob * n_prob
+                    for n_probs in neighbors:
+                        p_next[n_probs] += t_prob
         
         agg_probs = defaultdict(lambda:0)
         for step_probs in p_by_step:
@@ -118,20 +202,6 @@ class ProCache(DynamicCache):
 
         return agg_probs
 
-    def _props_query(self, props):
-        """ Generate aggregation query for property tuple. 
-        
-        Args:
-            props: tuple of properties describing fact
-            
-        Returns:
-            aggregation query associated with fact properties
-        """
-        fact = Fact.from_props(list(props))
-        return AggQuery.from_fact(
-            self.table, self.all_preds, 
-            self.cmp_pred, self.agg_cols, fact)
-    
     def _rank_aggs(self, q_probs):
         """ Rank aggregates by their probability.
         

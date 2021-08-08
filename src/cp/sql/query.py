@@ -85,6 +85,21 @@ class GroupQuery():
         """
         return True if query.pred_cols == self.dims else False
     
+    def contains(self, query):
+        """ Check if group-by query generates result to simple query.
+        
+        Args:
+            query: a simple aggregation query
+        
+        Returns:
+            true iff the simple query is contained
+        """
+        if query.agg_col in self.aggs and query.eq_preds in self.preds and \
+            query.table == self.table and query.cmp_pred == self.cmp_pred:
+            return True
+        else:
+            return False
+    
     def integrate(self, query):
         """ Expand group-by query to subsume given query.
         
