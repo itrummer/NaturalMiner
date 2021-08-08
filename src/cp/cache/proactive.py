@@ -56,7 +56,7 @@ class ProCache(DynamicCache):
             query = self._props_query(fact.props)
             if not self.can_answer(query):
                 
-                u_q_probs = [q_p for q_p in q_probs.items() 
+                u_q_probs = [q_p for q_p in q_probs 
                              if not self.can_answer(q_p[0])]
                 logging.debug(f'Uncached query probs: {u_q_probs}')
                 r_aggs = self._rank_aggs(u_q_probs)
@@ -65,20 +65,20 @@ class ProCache(DynamicCache):
                 logging.debug(f'Ranked predicates: {r_preds}')
                 exp_g_q = self._expand(query, u_q_probs, 1.5)
                 logging.debug(f'Expanded query: {exp_g_q}')
-                self.cache(exp_g_q.aggs, exp_g_q.preds)
+                self.cache(exp_g_q)
     
     def _coverage(self, g_query, q_probs):
         """ Probability sum of queries covered by group-by query.
         
         Args:
             g_query: a group-by query covering multiple simple queries
-            q_probs: queries with associated probabilities
+            q_probs: list of pairs (queries with associated probabilities)
         
         Returns:
             sum of probability over all covered queries
         """
         agg_prob = 0
-        for q, p in q_probs.items():
+        for q, p in q_probs:
             if g_query.contains(q):
                 agg_prob += p
         
@@ -105,7 +105,7 @@ class ProCache(DynamicCache):
         _, base_cost = estimates(self.connection, g_sql)
         
         max_cover = 0
-        max_exp = None
+        max_exp = g_query
         nr_aggs = len(r_aggs)
         for aggs_ctr in range(nr_aggs):
             aggs = r_aggs[0:aggs_ctr+1]
@@ -113,10 +113,10 @@ class ProCache(DynamicCache):
             e_query.aggs = aggs
             
             for p in r_preds:
-                e_query.preds += [p]
+                e_query.preds.add(p)
                 e_sql = e_query.sql()
                 _, e_cost = estimates(self.connection, e_sql)
-                if e_cost > max_cost * base_cost:
+                if e_cost <= max_cost * base_cost:
                     cover = self._coverage(e_query, q_probs)
                     if cover > max_cover:
                         max_cover = cover
@@ -216,7 +216,8 @@ class ProCache(DynamicCache):
             agg = q.agg_col
             p_agg[agg] += p
             
-        return sorted(p_agg.items(), key=lambda i:i[1], reverse=True)
+        agg_p_sorted = sorted(p_agg.items(), key=lambda i:i[1], reverse=True)
+        return [a for a, _ in agg_p_sorted]
     
     def _rank_preds(self, q_probs, query):
         """ Rank query-compatible predicates based on probabilities.
@@ -236,4 +237,5 @@ class ProCache(DynamicCache):
                 preds = frozenset(q.eq_preds)
                 p_pred[preds] += p
         
-        return sorted(p_pred.items(), key=lambda i:i[1], reverse=True)
+        pred_p_sorted = sorted(p_pred.items(), key=lambda i:i[1], reverse=True)
+        return [p for p, _ in pred_p_sorted]

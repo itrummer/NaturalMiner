@@ -24,19 +24,12 @@ class DynamicCache(AggCache):
         self.cmp_pred = cmp_pred
         self.q_to_r = {}
 
-    def cache(self, aggs, preds):
-        """ Cache results for given aggregates and predicates. 
+    def cache(self, g_query):
+        """ Cache results for given group-by query. 
         
         Args:
-            aggs: aggregates to cache
-            preds: predicates to cache
+            g_query: group-by query
         """
-        if preds:
-            dims = {p[0] for p in next(iter(preds))}
-        else:
-            dims = {}
-
-        g_query = GroupQuery(self.table, dims, self.cmp_pred)
         sql = g_query.sql()
         logging.debug(f'About to fill cache with SQL "{sql}"')
         
@@ -46,7 +39,7 @@ class DynamicCache(AggCache):
             total_s = time.time() - start_s
             logging.debug(f'Time: {total_s} s for query {sql}')
             rows = cursor.fetchall()
-            self._extract_results(aggs, preds, rows)
+            self._extract_results(g_query, rows)
 
     def can_answer(self, query):
         """ Check if query result is cached.
@@ -70,35 +63,29 @@ class DynamicCache(AggCache):
         """
         return self.q_to_r[query]
 
-    def _extract_results(self, aggs, preds, rows):
+    def _extract_results(self, g_query, rows):
         """ Extracts new cache entries from query result.
         
         Args:
-            aggs: aggregation columns
-            preds: predicate groups used for query
+            g_query: group-by query
             rows: result rows of caching query
         """
-        if preds:
-            dims = {p[0] for p in next(iter(preds))}
-        else:
-            dims = {}
-
         for r in rows:
             cmp_c = r['cmp_c']
             if cmp_c > 0:
                 c = r['c']
-                for agg in aggs:
+                for agg in g_query.aggs:
                     s = r[f's_{agg}']
                     if s is not None and s > 0:
                         cmp_s = r[f'cmp_s_{agg}']
-                        eq_preds = [(d, r[d]) for d in dims]
+                        eq_preds = [(d, r[d]) for d in g_query.dims]
                         q = AggQuery(self.table, frozenset(eq_preds), 
                                      self.cmp_pred, agg)
                         rel_avg = (cmp_s/cmp_c)/(s/c)
                         self.q_to_r[q] = rel_avg
                         
-        for agg in aggs:
-            for p_group in preds:
+        for agg in g_query.aggs:
+            for p_group in g_query.preds:
                 q = AggQuery(self.table, frozenset(p_group), self.cmp_pred, agg)
                 if not self.can_answer(q):
                     self.q_to_r[q] = None

@@ -5,7 +5,7 @@ Created on Jun 5, 2021
 '''
 from cp.sql.pred import is_pred, pred_sql
 from dataclasses import dataclass
-from typing import FrozenSet, Tuple
+from typing import FrozenSet, Tuple, List, Set
 
 import logging
 import time
@@ -50,6 +50,12 @@ class AggQuery():
 @dataclass
 class GroupQuery():
     """ Represents a group-by aggregation query. """
+    
+    table: str
+    dims: Set[str]
+    cmp_pred: str
+    aggs: Set[str]
+    preds: Set[Tuple[str, str]]
     
     def __init__(self, table, dims, cmp_pred):
         """ Initializes group queries.
