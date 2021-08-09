@@ -55,7 +55,7 @@ class ProCache(DynamicCache):
         for fact in self.cur_facts:
             query = self._props_query(fact.props)
             if not self.can_answer(query):
-                
+                logging.debug(f'Query to expand: {query}')
                 u_q_probs = [q_p for q_p in q_probs 
                              if not self.can_answer(q_p[0])]
                 logging.debug(f'Uncached query probs: {u_q_probs}')

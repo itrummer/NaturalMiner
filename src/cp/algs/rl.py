@@ -242,61 +242,6 @@ class PickingEnv(gym.Env):
         
         return torch.stack(components, dim=0).to('cpu').numpy()
     
-    def _proactive_caching(self):
-        """ Fill cache with values for current facts and beyond. """
-        
-        # collect un-cached fact queries
-        u_queries = []
-        u_preds = set()
-        u_aggs = set()
-        for fact in self.cur_facts:
-            eq_preds = [self.all_preds[p] for p in fact.get_preds()]
-            eq_preds = list(filter(lambda p: is_pred(p), eq_preds))
-            agg_idx = fact.get_agg()
-            agg_col = self.agg_cols[agg_idx]
-            query = AggQuery(self.table, eq_preds, self.cmp_pred, agg_col)
-            if not self.cache.can_answer(query):
-                u_preds.update(fact.get_preds())
-                u_aggs.update([fact.get_agg()])
-                u_queries.append(query)
-                        
-        # calculate aggregate scope
-        rel_agg_ids = set()
-        for u_agg in u_aggs:
-            reachable = self.agg_graph.get_reachable(u_agg, 1)
-            rel_agg_ids.update(reachable)
-        rel_aggs = frozenset([self.agg_cols[a_id] for a_id in rel_agg_ids])
-        if not rel_aggs:
-            return
-        
-        # calculate predicate scope
-        rel_dims = frozenset([p[0] for q in u_queries for p in q.eq_preds])
-        d_to_v = defaultdict(lambda:set())
-        for p in u_preds:
-            for p_idx in self.pred_graph.get_reachable(p, 1):
-                dim, val = self.all_preds[p_idx]
-                if dim in rel_dims:
-                    d_to_v[dim].add(val)
-        
-        # prune out cached results
-        if len(d_to_v) == 1:
-            logging.debug(f'Unpruned values: {d_to_v}')
-            d, vals = list(d_to_v.items())[0]
-            vals = self._prune_vals(d, vals, rel_aggs)
-            logging.debug(f'Pruned values: {vals}')
-            scope = frozenset([(d, frozenset(vals))])
-        else:
-            scope = frozenset([(d, frozenset(v)) for d, v in d_to_v.items()])
-
-        # no values left for at least one dimension?
-        for dim, vals in scope:
-            if not vals:
-                logging.debug(f'No values for dimension {dim}')
-                return
-
-        # construct view for caching
-        self.cache.cache(rel_aggs, scope)
-    
     def _save_reward(self, reward):
         """ Store reward of current fact combination. 
         

@@ -78,7 +78,9 @@ class GroupQuery():
         Args:
             query: simple aggregation query
         """
-        return GroupQuery(query.table, query.pred_cols(), query.cmp_pred)
+        g_q = GroupQuery(query.table, query.pred_cols(), query.cmp_pred)
+        g_q.integrate(query)
+        return g_q
     
     def can_merge(self, query):
         """ Check if simple query can be merged into group-by query.
