@@ -59,6 +59,7 @@ class SumGenerator():
                     agg_cols=self.agg_cols, q_engine=self.q_engine, 
                     aggs_txt=self.aggs_txt)
                 self.fact_to_text[f_id] = f_txt
+                self.fact_to_conf[f_id] = f_conf
                 
             if f_txt is None:
                 return None, None

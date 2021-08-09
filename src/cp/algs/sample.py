@@ -155,7 +155,7 @@ class Sampler():
                 queries.append(query)
             
             if not [q for q in queries if not self.cache.can_answer(q)]:
-                text = self.s_gen.generate(facts)
+                text, _ = self.s_gen.generate(facts)
                 reward = self.s_eval.evaluate(text)
                 text_to_reward[text] = reward
         
@@ -180,7 +180,7 @@ class Sampler():
             gamma=1.0, normalize_advantage=True)
         model.learn(total_timesteps=200)
         
-        return self._ranked_sums(env)
+        return self._ranked_sums(env), env.statistics()
     
     def _ranked_sums(self, env):
         """ Extracts summaries from environment and ranks them.
@@ -200,7 +200,8 @@ class Sampler():
             fact_sum = [cp.text.fact.Fact.from_props(p) for p in prop_sum]
             sum_eval += [(fact_sum, c_qual)]
         
-        return sorted(sum_eval, key=lambda s_e: s_e[1], reverse=True)
+        s_sums = sorted(sum_eval, key=lambda s_e: s_e[1], reverse=True)
+        return [s[0] for s in s_sums]
             
     def _similarity(self, g_query_1, g_query_2):
         """ Calculates similarity (from 0 to 1) between two queries.
