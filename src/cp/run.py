@@ -75,7 +75,7 @@ def run_sampling(connection, test_case, all_preds):
     Returns:
         summaries with quality, performance statistics
     """
-    sampler = cp.algs.sample.Sampler(connection, test_case, all_preds)
+    sampler = cp.algs.sample.Sampler(connection, test_case, all_preds, 5)
     text_to_reward, p_stats = sampler.run_sampling()
     
     return text_to_reward, p_stats

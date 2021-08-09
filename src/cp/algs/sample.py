@@ -4,7 +4,7 @@ Created on Aug 7, 2021
 @author: immanueltrummer
 '''
 from cp.sql.query import AggQuery, GroupQuery
-import cp.cache.static
+import cp.cache.dynamic
 import cp.text.fact
 import cp.algs.rl
 import cp.sql.cost
@@ -16,17 +16,19 @@ import time
 class Sampler():
     """ Selects data summaries via sampling. """
     
-    def __init__(self, connection, test_case, all_preds):
+    def __init__(self, connection, test_case, all_preds, max_nr_sums):
         """ Initialize sampler, creates summary generator.
         
         Args:
             connection: connection to database
             test_case: description of scenario
             all_preds: all possible predicates
+            max_nr_sums: maximal number of summaries on full data set
         """
         self.connection = connection
         self.test_case = test_case
         self.all_preds = all_preds
+        self.max_nr_sums = max_nr_sums
         self.table = test_case['table']
         self.cmp_pred = test_case['cmp_pred']
         self.dim_cols = test_case['dim_cols']
@@ -35,7 +37,7 @@ class Sampler():
         dims_tmp = test_case['dims_tmp']
         aggs_txt = test_case['aggs_txt']
         
-        self.cache = cp.cache.proactive.ProCache(
+        self.cache = cp.cache.dynamic.DynamicCache(
             connection, self.table, self.cmp_pred)
         self.q_engine = cp.sql.query.QueryEngine(
             connection, self.table, 
@@ -57,11 +59,9 @@ class Sampler():
         table_sample = f'(select * from {full_table} limit 10000) as S'
         sample_case['table'] = table_sample
     
-        cache = cp.cache.static.EmptyCache()    
         env = cp.algs.rl.PickingEnv(
             self.connection, **sample_case, 
-            all_preds=self.all_preds,
-            cache=cache, proactive=False)
+            all_preds=self.all_preds, c_type='empty')
         model = A2C(
             'MlpPolicy', env, verbose=True, 
             gamma=1.0, normalize_advantage=True)
@@ -69,7 +69,7 @@ class Sampler():
     
         s_sums = sorted(
             env.props_to_rewards.items(),
-            key=lambda s: s[1], reversed=True)
+            key=lambda s: s[1], reverse=True)
         return [
             [cp.text.fact.Fact.from_props(p) for p in s[0]]
             for s in s_sums], env.statistics()
@@ -152,23 +152,24 @@ class Sampler():
                     if not (g1 == g2):
                         sim = self.similarity(g1, g2)
                         sims += [(g1, g2, sim)]
-            g1, g2, _ = min(sims, key=lambda s:s[2])
             
-            gm = GroupQuery(self.table, g1.dims, self.cmp_pred)
-            gm.preds.update(g1.preds)
-            gm.preds.update(g2.preds)
-            gm.aggs.update(g1.aggs)
-            gm.aggs.update(g2.aggs)
-            g_merged.remove(g1)
-            g_merged.remove(g2)
-            g_merged.add(gm)
-            
-            cost = self.cost(g_merged)
             improved = False
-            if cost < min_cost:
-                min_cost = cost
-                min_g_qs = g_merged.copy()
-                improved = True
+            if sims:
+                g1, g2, _ = min(sims, key=lambda s:s[2])
+                gm = GroupQuery(self.table, g1.dims, self.cmp_pred)
+                gm.preds.update(g1.preds)
+                gm.preds.update(g2.preds)
+                gm.aggs.update(g1.aggs)
+                gm.aggs.update(g2.aggs)
+                g_merged.remove(g1)
+                g_merged.remove(g2)
+                g_merged.append(gm)
+                
+                cost = self.cost(g_merged)
+                if cost < min_cost:
+                    min_cost = cost
+                    min_g_qs = g_merged.copy()
+                    improved = True
         
         logging.debug(f'Cost after clustering: {min_cost} with {min_g_qs}')
         for g_q in min_g_qs:
@@ -188,7 +189,7 @@ class Sampler():
         if sam_sums:
             self.fill_cache(sam_sums)
         
-        nr_sums = min(len(sam_sums), 5)
+        nr_sums = min(len(sam_sums), self.max_nr_sums)
         for facts in sam_sums[0:nr_sums]:
             
             queries = []

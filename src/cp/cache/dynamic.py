@@ -63,6 +63,10 @@ class DynamicCache(AggCache):
         """
         return self.q_to_r[query]
 
+    def update(self):
+        """ Dynamic cache fills only upon specific request. """
+        pass
+
     def _extract_results(self, g_query, rows):
         """ Extracts new cache entries from query result.
         
