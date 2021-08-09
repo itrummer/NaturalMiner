@@ -32,6 +32,7 @@ class SumGenerator():
         self.aggs_txt = aggs_txt
         self.q_engine = q_engine
         self.fact_to_text = {}
+        self.fact_to_conf = {}
         self.gen_s = 0
     
     def generate(self, facts):
@@ -41,27 +42,31 @@ class SumGenerator():
             facts: describe those facts
             
         Returns:
-            text string describing facts
+            text string describing facts, confidence
         """
         start_s = time.time()
         s_parts = []
+        s_conf = 1
         for fact in facts:
             f_id = fact.get_id()
             if f_id in self.fact_to_text:
                 f_txt = self.fact_to_text[f_id]
+                f_conf = self.fact_to_conf[f_id]
             else:
-                f_txt = cp.text.fact.fact_txt(
-                    fact, preamble=self.preamble, dim_cols=self.dim_cols, 
+                f_txt, f_conf = fact.to_txt(
+                    preamble=self.preamble, dim_cols=self.dim_cols, 
                     all_preds=self.all_preds, dims_tmp=self.dims_tmp, 
                     agg_cols=self.agg_cols, q_engine=self.q_engine, 
                     aggs_txt=self.aggs_txt)
-                self.fact_to_text[f_id] = f_txt            
+                self.fact_to_text[f_id] = f_txt
+                
             if f_txt is None:
-                return None
+                return None, None
             s_parts.append(f_txt)
+            s_conf *= f_conf
     
         self.gen_s += time.time() - start_s
-        return ' '.join(s_parts)
+        return ' '.join(s_parts), s_conf
     
     def statistics(self):
         """ Returns performance statistics.

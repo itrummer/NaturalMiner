@@ -219,9 +219,10 @@ class QueryEngine():
             agg_col: calculate average for this column
             
         Returns:
-            Average over aggregation column for satisfying rows
+            Average over aggregation column for satisfying rows, row count
         """
-        q_parts = [f'select avg({agg_col}) as avg from {self.table} where TRUE'] 
+        q_parts = [f'select avg({agg_col}) as avg, ' \
+                   f'count(*) as count from {self.table} where TRUE']
         q_parts += [pred_sql(col=c, val=v) for c, v in eq_preds]
         q_parts += [pred]
         query = ' AND '.join(q_parts)
@@ -229,9 +230,11 @@ class QueryEngine():
         with self.connection.cursor() as cursor:
             logging.debug(f'About to execute query {query}')
             cursor.execute(query)
-            avg = cursor.fetchone()['avg']
-            
-        return avg
+            row = cursor.fetchone()
+            avg = row['avg']
+            count = row['count']
+
+        return avg, count
     
     def rel_avg(self, eq_preds, agg_col):
         """ Relative average of focus entity in given data scope. 
@@ -256,16 +259,17 @@ class QueryEngine():
             logging.debug(f'Cache miss: {query}')
             
             start_s = time.time()
-            entity_avg = self.avg(eq_preds, self.cmp_pred, agg_col)
-            general_avg = self.avg(eq_preds, 'true', agg_col)
+            e_avg, e_cnt = self.avg(eq_preds, self.cmp_pred, agg_col)
+            g_avg, _ = self.avg(eq_preds, 'true', agg_col)
             total_s = time.time() - start_s
             logging.debug(f'Processing {query} took {total_s} seconds')
             
-            if entity_avg is None or general_avg is None:
-                return None
+            if e_avg is None or g_avg is None:
+                return None, None
             else:
-                f_gen_avg = max(0.0001, float(general_avg))
-                return float(entity_avg) / f_gen_avg
+                f_gen_avg = max(0.0001, float(g_avg))
+                rel_avg = float(e_avg) / f_gen_avg
+                return rel_avg, e_cnt
             
     def statistics(self):
         """ Generates performance statistics. 

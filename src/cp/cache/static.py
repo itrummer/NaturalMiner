@@ -62,8 +62,8 @@ class CubeCache(AggCache):
         """
         a = query.agg_col
         q_parts = [f'select case when cmp_c = 0 or s_{a} = 0 then NULL']
-        q_parts += [f'else (cmp_s_{a}/cmp_c)/(s_{a}/c) end as rel_avg']
-        q_parts += [f'from {self.cube_tbl}']
+        q_parts += [f'else (cmp_s_{a}/cmp_c)/(s_{a}/c) end as rel_avg,']
+        q_parts += [f'cmp_c as row_count from {self.cube_tbl}']
         
         w_parts = [pred_sql(c, v) for c, v in query.eq_preds if is_pred((c, v))]
         p_cols = query.pred_cols()

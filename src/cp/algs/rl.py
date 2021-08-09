@@ -153,6 +153,7 @@ class PickingEnv(gym.Env):
             self.q_engine)
         self.s_eval = SumEvaluator()
         self.props_to_rewards = {}
+        self.props_to_conf = {}
         
         self.cur_facts = []
         for _ in range(nr_facts):
@@ -221,9 +222,9 @@ class PickingEnv(gym.Env):
 
     def _evaluate(self):
         """ Evaluate quality of current summary. """
-        text = self.s_gen.generate(self.cur_facts)
+        text, conf = self.s_gen.generate(self.cur_facts)
         reward = self.s_eval.evaluate(text)
-        self._save_reward(reward)
+        self._save_eval_results(reward, conf)
         return reward
 
     def _observe(self):
@@ -242,12 +243,14 @@ class PickingEnv(gym.Env):
         
         return torch.stack(components, dim=0).to('cpu').numpy()
     
-    def _save_reward(self, reward):
+    def _save_eval_results(self, reward, conf):
         """ Store reward of current fact combination. 
         
         Args:
             reward: received for current facts
+            conf: confidence of evaluation (used if sampling)
         """
         fact_tuples = [tuple(f.props) for f in self.cur_facts]
-        speech_tuple = tuple(fact_tuples)
-        self.props_to_rewards[speech_tuple] = reward
+        sum_tuple = tuple(fact_tuples)
+        self.props_to_rewards[sum_tuple] = reward
+        self.props_to_conf[sum_tuple] = conf

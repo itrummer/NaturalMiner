@@ -23,6 +23,7 @@ class DynamicCache(AggCache):
         self.table = table
         self.cmp_pred = cmp_pred
         self.q_to_r = {}
+        self.q_to_c = {}
 
     def cache(self, g_query):
         """ Cache results for given group-by query. 
@@ -61,7 +62,7 @@ class DynamicCache(AggCache):
         Returns:
             result for given aggregation query
         """
-        return self.q_to_r[query]
+        return self.q_to_r[query], self.q_to_c[query]
 
     def update(self):
         """ Dynamic cache fills only upon specific request. """
@@ -87,6 +88,7 @@ class DynamicCache(AggCache):
                                      self.cmp_pred, agg)
                         rel_avg = (cmp_s/cmp_c)/(s/c)
                         self.q_to_r[q] = rel_avg
+                        self.q_to_c[q] = cmp_c
                         
         for agg in g_query.aggs:
             for p_group in g_query.preds:

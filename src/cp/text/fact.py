@@ -4,6 +4,7 @@ Created on Jul 21, 2021
 @author: immanueltrummer
 '''
 from cp.sql.pred import is_pred
+import math
 import random
 
 class Fact():
@@ -79,47 +80,62 @@ class Fact():
     def reset(self):
         """ Reset properties to default values. """
         self.props = [0] * self.nr_props
-
-
-def fact_txt(fact, preamble, dim_cols, all_preds, 
-             dims_tmp, agg_cols, q_engine, aggs_txt):
-    """ Generate text describing fact. 
     
-    Args:
-        fact: a fact to describe
-        preamble: start with this text
-        dim_cols: list of dimension columns
-        all_preds: list of all predicates
-        dims_tmp: text templates for dimensions
-        agg_cols: list of aggregation columns
-        q_engine: used to calculate aggregates
-        aggs_txt: text for aggregation columns
+    def to_txt(self, preamble, dim_cols, all_preds, 
+             dims_tmp, agg_cols, q_engine, aggs_txt):
+        """ Generate text describing fact with confidence. 
         
-    Returns:
-        text description of fact
-    """
-    f_parts = [preamble]
-    preds = [all_preds[i] for i in fact.get_preds()]
-    preds = list(filter(lambda p:is_pred(p), preds))
-    for pred in preds:
-        dim_idx = dim_cols.index(pred[0])
-        dim_tmp = dims_tmp[dim_idx]
-        dim_txt = dim_tmp.replace('<V>', str(pred[1]))
-        f_parts.append(dim_txt)
+        Args:
+            preamble: start with this text
+            dim_cols: list of dimension columns
+            all_preds: list of all predicates
+            dims_tmp: text templates for dimensions
+            agg_cols: list of aggregation columns
+            q_engine: used to calculate aggregates
+            aggs_txt: text for aggregation columns
+            
+        Returns:
+            text description of fact
+        """
+        f_parts = [preamble]
+        preds = [all_preds[i] for i in self.get_preds()]
+        preds = list(filter(lambda p:is_pred(p), preds))
+        for pred in preds:
+            dim_idx = dim_cols.index(pred[0])
+            dim_tmp = dims_tmp[dim_idx]
+            dim_txt = dim_tmp.replace('<V>', str(pred[1]))
+            f_parts.append(dim_txt)
+    
+        agg_idx = self.get_agg()
+        agg_col = agg_cols[agg_idx]
+        rel_avg, row_cnt = q_engine.rel_avg(preds, agg_col)
+        if rel_avg is None:
+            return None
+    
+        percent = int(rel_avg * 100)
+        percent_d = percent - 100
+        if percent_d != 0:
+            cmp_text = f'{abs(percent_d)}% '
+            cmp_text += 'higher ' if percent_d > 0 else 'lower '
+            cmp_text += 'than average'
+        else:
+            cmp_text = 'about average'                
+        f_parts.append(f'{aggs_txt[agg_idx]} is {cmp_text}.')
+        text = ' '.join(f_parts).replace('_', ' ').replace('  ', ' ')
+        
+        return text, self._confidence(row_cnt)
+    
+    def _confidence(self, row_cnt):
+        """ Calculates confidence that text is accurate.
+        
+        For this implementation, we assume that all digits
+        are used when generating text. Otherwise, we
+        would need to consider the actual percentage.
+        
+        Args:
+            row_cnt: rows considered for entity average
 
-    agg_idx = fact.get_agg()
-    agg_col = agg_cols[agg_idx]
-    rel_avg = q_engine.rel_avg(preds, agg_col)
-    if rel_avg is None:
-        return None
-
-    percent = int(rel_avg * 100)
-    percent_d = percent - 100
-    if percent_d != 0:
-        cmp_text = f'{abs(percent_d)}% '
-        cmp_text += 'higher ' if percent_d > 0 else 'lower '
-        cmp_text += 'than average'
-    else:
-        cmp_text = 'about average'                
-    f_parts.append(f'{aggs_txt[agg_idx]} is {cmp_text}.')
-    return ' '.join(f_parts).replace('_', ' ').replace('  ', ' ')
+        Returns:
+            confidence that text is accurate
+        """
+        return 2 * math.exp(-2*0.005**2/(row_cnt*1))
