@@ -28,7 +28,7 @@ class AggCache(ABC):
             query: retrieve result of this query
             
         Returns:
-            query result
+            pair of relative average and, optionally, row count
         """
         raise NotImplementedError
 

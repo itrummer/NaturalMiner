@@ -69,7 +69,7 @@ def rand_sums(
             fact.random_init(pred_cnt=pred_cnt, agg_cnt=agg_cnt)
             facts.append(fact)
     
-        text = s_gen.generate(facts)
+        text, _ = s_gen.generate(facts)
         quality = s_eval.evaluate(text)
         text_to_quality[text] = quality
         
