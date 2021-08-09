@@ -5,12 +5,10 @@ Created on Jun 6, 2021
 '''
 import argparse
 import cp.algs.base
+import cp.algs.sample
 import cp.bench
-import cp.cache.static
-import cp.text.fact
-import cp.sql.query
 import cp.algs.rl
-import cp.text.sum
+import cp.sql.pred
 import logging
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -77,53 +75,10 @@ def run_sampling(connection, test_case, all_preds):
     Returns:
         summaries with quality, performance statistics
     """
-    start_s = time.time()
+    sampler = cp.algs.sample.Sampler(connection, test_case, all_preds)
+    text_to_reward, p_stats = sampler.run_sampling()
     
-    test_case = test_case.copy()
-    full_table = test_case['table']
-    table_sample = f'(select * from {full_table} limit 10000) as S'
-    test_case['table'] = table_sample
-    
-    cache = cp.cache.static.EmptyCache()    
-    env = cp.algs.rl.PickingEnv(
-        connection, **test_case, all_preds=all_preds, 
-        cache=cache, proactive=False)
-    model = A2C(
-        'MlpPolicy', env, verbose=True, 
-        gamma=1.0, normalize_advantage=True)
-    model.learn(total_timesteps=200)
-    
-    sorted_props = sorted(env.props_to_rewards.items(), key=lambda s: s[1])
-    best_props = sorted_props[-1][0]
-    
-    preamble = test_case['preamble']
-    cmp_pred = test_case['cmp_pred']
-    dim_cols = test_case['dim_cols']
-    dims_tmp = test_case['dims_tmp']
-    agg_cols = test_case['agg_cols']
-    aggs_txt = test_case['aggs_txt']
-    q_engine = cp.sql.query.QueryEngine(
-        connection, full_table, cmp_pred, cache)
-    s_gen = cp.text.sum.SumGenerator(
-        all_preds, preamble, dim_cols, 
-        dims_tmp, agg_cols, aggs_txt, 
-        q_engine)
-    s_eval = cp.text.sum.SumEvaluator()
-    
-    best_facts = [cp.text.fact.Fact.from_props(p) for p in best_props]
-    text = s_gen.generate(best_facts)
-    reward = s_eval.evaluate(text)
-    logging.debug(f'Best speech "{text}" with reward {reward}')
-
-    total_s = time.time() - start_s
-    logging.debug(f'Optimization took {total_s} seconds')
-    
-    p_stats = {'time':total_s}
-    p_stats.update(q_engine.statistics())
-    p_stats.update(s_gen.statistics())
-    p_stats.update(s_eval.statistics())
-    
-    return s_eval.text_to_reward, p_stats
+    return text_to_reward, p_stats
 
 
 def run_random(connection, test_case, all_preds, nr_sums, timeout_s):
@@ -236,19 +191,19 @@ def main():
                             t['nr_facts'] = nr_facts
                             t['nr_preds'] = nr_preds
                             
-                            # sums, p_stats = run_sampling(
-                                # connection, t, all_preds)
-                            # log_line(
-                                # file, b_id, t_id, nr_facts, nr_preds, 
-                                # 'sample', sums, p_stats)
+                            sums, p_stats = run_sampling(
+                                connection, t, all_preds)
+                            log_line(
+                                file, b_id, t_id, nr_facts, nr_preds, 
+                                'sample', sums, p_stats)
                             
-                            for c_type in ['proactive']:
-                                sums, p_stats = run_rl(
-                                    connection, t, all_preds, 
-                                    nr_samples, c_type)
-                                log_line(
-                                    file, b_id, t_id, nr_facts, nr_preds, 
-                                    'rl' + c_type, sums, p_stats)
+                            # for c_type in ['proactive']:
+                                # sums, p_stats = run_rl(
+                                    # connection, t, all_preds, 
+                                    # nr_samples, c_type)
+                                # log_line(
+                                    # file, b_id, t_id, nr_facts, nr_preds, 
+                                    # 'rl' + c_type, sums, p_stats)
                                 # timeout_s = p_stats['time']
                                 #
                             # sums, p_stats = run_random(
