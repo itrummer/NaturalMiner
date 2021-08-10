@@ -110,7 +110,7 @@ class Fact():
         agg_col = agg_cols[agg_idx]
         rel_avg, row_cnt = q_engine.rel_avg(preds, agg_col)
         if rel_avg is None:
-            return None
+            return None, None
     
         percent = int(rel_avg * 100)
         percent_d = percent - 100
