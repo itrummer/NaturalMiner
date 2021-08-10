@@ -73,11 +73,12 @@ class Sampler():
         """
         # collect queries associated with facts
         queries = []
-        for fact in sam_sums[0]:
-            a_q = AggQuery.from_fact(
-                self.table, self.all_preds,
-                self.cmp_pred, self.agg_cols, fact)
-            queries += [a_q]
+        for sum_facts in sam_sums:
+            for fact in sum_facts:
+                a_q = AggQuery.from_fact(
+                    self.table, self.all_preds,
+                    self.cmp_pred, self.agg_cols, fact)
+                queries += [a_q]
         
         # merge queries with same aggregates and dimensions
         g_merged = []
