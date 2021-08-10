@@ -95,3 +95,4 @@ class DynamicCache(AggCache):
                 q = AggQuery(self.table, frozenset(p_group), self.cmp_pred, agg)
                 if not self.can_answer(q):
                     self.q_to_r[q] = None
+                    self.q_to_c[q] = None
