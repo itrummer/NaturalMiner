@@ -132,8 +132,12 @@ def log_line(outfile, b_id, t_id, nr_facts,
         p_stats: performance statistics
     """
     sorted_sums = sorted(sums.items(), key=lambda s: s[1])
-    b_sum = sorted_sums[-1]
-    w_sum = sorted_sums[0]
+    if sorted_sums:
+        b_sum = sorted_sums[-1]
+        w_sum = sorted_sums[0]
+    else:
+        b_sum = ('-', -10)
+        w_sum = ('-', -10)
     
     e_time = p_stats['evaluation_time']
     time = p_stats['time']

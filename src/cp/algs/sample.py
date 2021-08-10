@@ -196,9 +196,10 @@ class Sampler():
         for prop_sum in prop_sums:
             reward = env.props_to_rewards[prop_sum]
             conf = env.props_to_conf[prop_sum]
-            c_qual = reward * conf
-            fact_sum = [cp.text.fact.Fact.from_props(p) for p in prop_sum]
-            sum_eval += [(fact_sum, c_qual)]
+            if reward is not None and conf is not None:
+                c_qual = reward * conf
+                fact_sum = [cp.text.fact.Fact.from_props(p) for p in prop_sum]
+                sum_eval += [(fact_sum, c_qual)]
         
         s_sums = sorted(sum_eval, key=lambda s_e: s_e[1], reverse=True)
         return [s[0] for s in s_sums]
