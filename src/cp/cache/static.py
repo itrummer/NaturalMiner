@@ -12,11 +12,18 @@ from psycopg2._psycopg import QueryCanceledError
 class EmptyCache(AggCache):
     """ Dummy cache that remains empty. """
     
+    def __init__(self):
+        self.nr_miss = 0
+    
     def can_answer(self, _):
+        self.nr_miss += 1
         return False
     
     def get_result(self, _):
         raise NotImplementedError
+    
+    def statistics(self):
+        return {'cache_hits':0, 'cache_misses':self.nr_miss}
     
     def update(self):
         pass
@@ -44,12 +51,18 @@ class CubeCache(AggCache):
         self.agg_cols = agg_cols
         self.timeout_s = timeout_s
         self.cube_tbl = 'cpcube'
-        
+        self.nr_hits = 0
+        self.nr_miss = 0
         self._clear()
         self.have_cube = self._create_cube()
     
     def can_answer(self, _):
-        return self.have_cube
+        if self.have_cube:
+            self.nr_hits += 1
+            return True
+        else:
+            self.nr_miss += 1
+            return False
     
     def get_result(self, query):
         """ Get result for query from cached cube.
@@ -80,7 +93,11 @@ class CubeCache(AggCache):
                 return None
             else:
                 return cursor.fetchone()[0]
-    
+
+    def statistics(self):
+        """ Returns number of cache hits and misses. """
+        return {'cache_hits':self.nr_hits, 'cache_misses':self.nr_miss}
+
     def update(self):
         pass
     

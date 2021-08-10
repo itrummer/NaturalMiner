@@ -186,7 +186,9 @@ class PickingEnv(gym.Env):
         Returns:
             Dictionary with performance statistics
         """
-        stats = self.q_engine.statistics().copy()
+        stats = {}
+        stats.update(self.q_engine.statistics())
+        stats.update(self.cache.statistics())
         stats.update(self.s_gen.statistics())
         stats.update(self.s_eval.statistics())
         return stats

@@ -27,8 +27,8 @@ scenarios = [
                         'storename', 'vendorname'], 
             'agg_cols':['bottlessold', 'salevalue', 'volumesold'], 
             'nr_facts':1, 'nr_preds':2, 'degree':5, 'max_steps':20, 
-            'preamble':'Among all stores', 
-            'dims_tmp':['in <V>', 'in <V>', 'considering <V>', 
+            'preamble':'Among all liquors', 
+            'dims_tmp':['sold in <V>', 'sold in <V>', 'of type <V>',
                         'sold at <V>', 'produced by <V>'],
             'aggs_txt':[', the number of bottles per sale', 
                         ', the dollar value per sale', ', the volume per sale']

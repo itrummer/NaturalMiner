@@ -40,6 +40,8 @@ class ProCache(DynamicCache):
         self.agg_cols = agg_cols
         self.agg_graph = agg_graph
         self.q_to_r = {}
+        self.nr_hits = 0
+        self.nr_miss = 0
 
     def set_cur_facts(self, cur_facts):
         """ Inform cache about currently selected facts.
@@ -49,12 +51,17 @@ class ProCache(DynamicCache):
         """
         self.cur_facts = cur_facts
 
+    def statistics(self):
+        """ Returns number of cache hits and misses. """
+        return {'cache_hits':self.nr_hits, 'cache_misses':self.nr_miss}
+
     def update(self):
         """ Proactively cache results close to current facts. """
         q_probs = [(q, p) for q, p in self._query_probs(1).items()]
         for fact in self.cur_facts:
             query = self._props_query(fact.props)
             if not self.can_answer(query):
+                self.nr_miss += 1
                 logging.debug(f'Query to expand: {query}')
                 u_q_probs = [q_p for q_p in q_probs 
                              if not self.can_answer(q_p[0])]
@@ -66,6 +73,8 @@ class ProCache(DynamicCache):
                 exp_g_q = self._expand(query, u_q_probs, 1.5)
                 logging.debug(f'Expanded query: {exp_g_q}')
                 self.cache(exp_g_q)
+            else:
+                self.nr_hits += 1
     
     def _coverage(self, g_query, q_probs):
         """ Probability sum of queries covered by group-by query.

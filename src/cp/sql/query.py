@@ -5,7 +5,7 @@ Created on Jun 5, 2021
 '''
 from cp.sql.pred import is_pred, pred_sql
 from dataclasses import dataclass
-from typing import FrozenSet, Tuple, List, Set
+from typing import FrozenSet, Tuple, Set
 
 import logging
 import time
@@ -207,8 +207,7 @@ class QueryEngine():
         self.cmp_pred = cmp_pred
         self.connection.autocommit = True
         self.q_cache = cache
-        self.cache_hits = 0
-        self.cache_misses = 0
+        self.nr_queries = 0
         
     def avg(self, eq_preds, pred, agg_col):
         """ Calculate average over aggregation column in scope. 
@@ -250,14 +249,11 @@ class QueryEngine():
                          self.cmp_pred, agg_col)
         
         if self.q_cache.can_answer(query):
-            self.cache_hits += 1
             logging.debug(f'Cache hit: {query}')
-            return self.q_cache.get_result(query)
-        
+            return self.q_cache.get_result(query)        
         else:
-            self.cache_misses += 1
             logging.debug(f'Cache miss: {query}')
-            
+            self.nr_queries += 1
             start_s = time.time()
             e_avg, e_cnt = self.avg(eq_preds, self.cmp_pred, agg_col)
             g_avg, _ = self.avg(eq_preds, 'true', agg_col)
@@ -277,4 +273,4 @@ class QueryEngine():
         Returns:
             Dictionary with statistics
         """
-        return {'cache_hits':self.cache_hits, 'cache_misses':self.cache_misses}
+        return {'nr_queries':self.nr_queries}

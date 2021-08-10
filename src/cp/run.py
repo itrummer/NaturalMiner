@@ -16,6 +16,7 @@ import time
 
 from stable_baselines3 import A2C, PPO
 from cp.sql.pred import all_preds
+from _collections import defaultdict
 
 def print_details(env):
     """ Prints details about RL results.
@@ -139,14 +140,20 @@ def log_line(outfile, b_id, t_id, nr_facts,
         b_sum = ('-', -10)
         w_sum = ('-', -10)
     
-    e_time = p_stats['evaluation_time']
-    time = p_stats['time']
-    cache_hits = p_stats['cache_hits']
-    cache_misses = p_stats['cache_misses']
+    def_stats = defaultdict(lambda:-1)
+    def_stats.update(p_stats)
+    e_time = def_stats['evaluation_time']
+    time = def_stats['time']
+    cache_hits = def_stats['cache_hits']
+    cache_misses = def_stats['cache_misses']
+    nr_queries = def_stats['nr_queries']
+    no_merge_cost = def_stats['no_merge_cost']
+    merged_cost = def_stats['merged_cost']
 
     outfile.write(f'{b_id}\t{t_id}\t{nr_facts}\t{nr_preds}\t' \
                   f'{m_id}\t{b_sum[0]}\t{b_sum[1]}\t{w_sum[0]}\t{w_sum[1]}\t' \
-                  f'{time}\t{e_time}\t{cache_hits}\t{cache_misses}\n')
+                  f'{time}\t{e_time}\t{cache_hits}\t{cache_misses}\t' \
+                  f'{nr_queries}\t{no_merge_cost}\t{merged_cost}\n')
     outfile.flush()
 
 
@@ -171,9 +178,10 @@ def main():
     logging.basicConfig(level=log_level, filemode='w')
     
     with open(outpath, 'w') as file:
-        file.write('scenario\ttestcase\tnrfacts\tnrpreds\t' \
+        file.write('scenario\ttestcase\tnrfacts\tnrpreds\t'\
                    'approach\tbest\tbquality\tworst\twquality\t'\
-                   'time\tetime\tchits\tcmisses\n')
+                   'time\tetime\tchits\tcmisses\tnrqueries\t'\
+                   'nomergecost\tmergedcost\n')
         with psycopg2.connect(database=db, user=user, 
                               cursor_factory=RealDictCursor) as connection:
             connection.autocommit = True
@@ -201,33 +209,33 @@ def main():
                                 file, b_id, t_id, nr_facts, nr_preds, 
                                 'sample', sums, p_stats)
                             
-                            # for c_type in ['proactive']:
-                                # sums, p_stats = run_rl(
-                                    # connection, t, all_preds, 
-                                    # nr_samples, c_type)
-                                # log_line(
-                                    # file, b_id, t_id, nr_facts, nr_preds, 
-                                    # 'rl' + c_type, sums, p_stats)
-                                # timeout_s = p_stats['time']
-                                #
-                            # sums, p_stats = run_random(
-                                # connection, t, all_preds, 1, float('inf'))
-                            # log_line(
-                                # file, b_id, t_id, nr_facts,
-                                # nr_preds, 'rand1', sums, p_stats)
-                                #
-                            # sums, p_stats = run_random(
-                                # connection, t, all_preds, 
-                                # float('inf'), timeout_s)
-                            # log_line(
-                                # file, b_id, t_id, nr_facts,
-                                # nr_preds, 'rand', sums, p_stats)
-                                #
-                            # sums, p_stats = run_gen(
-                                # connection, t, all_preds, timeout_s)
-                            # log_line(
-                                # file, b_id, t_id, nr_facts,
-                                # nr_preds, 'gen', sums, p_stats)
+                            for c_type in ['empty', 'rlcube', 'proactive']:
+                                sums, p_stats = run_rl(
+                                    connection, t, all_preds, 
+                                    nr_samples, c_type)
+                                log_line(
+                                    file, b_id, t_id, nr_facts, nr_preds, 
+                                    'rl' + c_type, sums, p_stats)
+                            timeout_s = p_stats['time']
+                                
+                            sums, p_stats = run_random(
+                                connection, t, all_preds, 1, float('inf'))
+                            log_line(
+                                file, b_id, t_id, nr_facts,
+                                nr_preds, 'rand1', sums, p_stats)
+                                
+                            sums, p_stats = run_random(
+                                connection, t, all_preds, 
+                                float('inf'), timeout_s)
+                            log_line(
+                                file, b_id, t_id, nr_facts,
+                                nr_preds, 'rand', sums, p_stats)
+                                
+                            sums, p_stats = run_gen(
+                                connection, t, all_preds, timeout_s)
+                            log_line(
+                                file, b_id, t_id, nr_facts,
+                                nr_preds, 'gen', sums, p_stats)
 
 if __name__ == '__main__':
     main()

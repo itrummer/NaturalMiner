@@ -4,7 +4,7 @@ Created on Jul 31, 2021
 @author: immanueltrummer
 '''
 from cp.cache.common import AggCache
-from cp.sql.query import AggQuery, GroupQuery
+from cp.sql.query import AggQuery
 import logging
 import time
 
@@ -24,6 +24,8 @@ class DynamicCache(AggCache):
         self.cmp_pred = cmp_pred
         self.q_to_r = {}
         self.q_to_c = {}
+        self.c_hits = 0
+        self.c_miss = 0
 
     def cache(self, g_query):
         """ Cache results for given group-by query. 
@@ -51,7 +53,12 @@ class DynamicCache(AggCache):
         Returns:
             true iff query result is cached
         """
-        return query in self.q_to_r
+        if query in self.q_to_r:
+            self.c_hits += 1
+            return True
+        else:
+            self.c_miss += 1
+            return False
         
     def get_result(self, query):
         """ Get cached result for given query.
@@ -63,6 +70,14 @@ class DynamicCache(AggCache):
             result for given aggregation query
         """
         return self.q_to_r[query], self.q_to_c[query]
+
+    def statistics(self):
+        """ Return performance statistics.
+        
+        Returns:
+            cache hits and misses in dictionary
+        """
+        return {'cache_hits':self.c_hits, 'cache_misses':self.c_miss}
 
     def update(self):
         """ Dynamic cache fills only upon specific request. """

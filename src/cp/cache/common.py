@@ -33,6 +33,15 @@ class AggCache(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def statistics(self):
+        """ Get statistics on cache performance.
+        
+        Returns:
+            dictionary with performance statistics
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     def update(self):
         """ Update cache content (no effect for static cache). """
         raise NotImplementedError

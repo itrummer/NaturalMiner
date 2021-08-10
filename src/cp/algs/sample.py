@@ -70,7 +70,11 @@ class Sampler():
         
         Args:
             sam_sums: summaries (facts) selected via sampling
+        
+        Returns:
+            statistics on efficiency of merge step
         """
+        stats = {}
         # collect queries associated with facts
         queries = []
         for sum_facts in sam_sums:
@@ -99,6 +103,7 @@ class Sampler():
         min_g_qs = g_merged.copy()
         min_cost = self._cost(g_merged)
         logging.debug(f'Cost before clustering: {min_cost} with {g_merged}')
+        stats['no_merge_cost'] = min_cost
         
         improved = True
         while improved:
@@ -128,8 +133,11 @@ class Sampler():
                     improved = True
         
         logging.debug(f'Cost after clustering: {min_cost} with {min_g_qs}')
+        stats['merged_cost'] = min_cost
         for g_q in min_g_qs:
             self.cache.cache(g_q)
+        
+        return stats
     
     def _full_data_summaries(self, sam_sums):
         """ Generates summaries by considering the full data set.
@@ -138,12 +146,12 @@ class Sampler():
             sam_sums: summaries selected via sample
         
         Returns:
-            a subset of summaries referring to full data set
+            a subset of summaries referring to full data set, statistics
         """
         text_to_reward = {}
     
         if sam_sums:
-            self._fill_cache(sam_sums)
+            stats = self._fill_cache(sam_sums)
         
         nr_sums = min(len(sam_sums), self.max_nr_sums)
         for facts in sam_sums[0:nr_sums]:
@@ -160,7 +168,7 @@ class Sampler():
                 reward = self.s_eval.evaluate(text)
                 text_to_reward[text] = reward
         
-        return text_to_reward
+        return text_to_reward, stats
 
     def _learn_on_sample(self):
         """ Learn good summaries for a data sample.
@@ -232,13 +240,11 @@ class Sampler():
         """
         start_s = time.time()
         s_sums, p_stats = self._learn_on_sample()
-        fs_to_r = self._full_data_summaries(s_sums)
+        fs_to_r, m_stats = self._full_data_summaries(s_sums)
         total_s = time.time() - start_s
         
         logging.debug(f'Optimization took {total_s} seconds')
         p_stats['time'] = total_s
-        p_stats.update(self.q_engine.statistics())
-        p_stats.update(self.s_gen.statistics())
-        p_stats.update(self.s_eval.statistics())
+        p_stats.update(m_stats)
         
         return fs_to_r, p_stats

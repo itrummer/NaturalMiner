@@ -78,6 +78,7 @@ def rand_sums(
             break
     
     stats = {'time':total_s}
+    stats.update(cache.statistics())
     stats.update(q_engine.statistics())
     stats.update(s_gen.statistics())
     stats.update(s_eval.statistics())
@@ -163,7 +164,5 @@ def gen_rl(timeout_s, **kwargs):
     p_stats = {}
     p_stats['time'] = total_s
     p_stats['evaluation_time'] = eval_total_s
-    p_stats['cache_hits'] = -1
-    p_stats['cache_misses'] = -1
     
     return t_to_q, p_stats
