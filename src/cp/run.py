@@ -209,7 +209,7 @@ def main():
                                 file, b_id, t_id, nr_facts, nr_preds, 
                                 'sample', sums, p_stats)
                             
-                            for c_type in ['empty', 'rlcube', 'proactive']:
+                            for c_type in ['empty', 'cube', 'proactive']:
                                 sums, p_stats = run_rl(
                                     connection, t, all_preds, 
                                     nr_samples, c_type)
