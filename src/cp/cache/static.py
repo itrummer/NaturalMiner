@@ -92,7 +92,8 @@ class CubeCache(AggCache):
             if cursor.rowcount == 0:
                 return None
             else:
-                return cursor.fetchone()[0]
+                r = cursor.fetchone()
+                return r['rel_avg'], r['row_count']
 
     def statistics(self):
         """ Returns number of cache hits and misses. """
