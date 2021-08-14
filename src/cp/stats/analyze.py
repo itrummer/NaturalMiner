@@ -72,8 +72,10 @@ def perf_plot(df, approaches, metric, y_bounds, y_label, out_path):
         y_label: axis label for y axis
         out_path: write output plot to this file
     """
-    _, axes = plt.subplots(nrows=3, figsize=(3.5,3.5))
-    scenario_names = ['Small (Laptops)', 'Large (Liquors)', 'Medium (Tools)']
+    _, axes = plt.subplots(nrows=3, figsize=(3,3))
+    scenario_names = ['Laptops (Size: 30 KB)', 
+                      'Liquors (Size: 5 GB)', 
+                      'Tools (Size: 10 MB)']
     
     for y_pos, scenario in enumerate([0, 2, 1]):        
         cur_df = df.query(f'scenario == {scenario}')
@@ -84,14 +86,15 @@ def perf_plot(df, approaches, metric, y_bounds, y_label, out_path):
         
         ax = axes[y_pos]
         sc_name = scenario_names[scenario]
-        ax.set_title(sc_name)
+        ax.set_title(sc_name, fontsize=9)
         ax.set_ylabel(y_label)
         if y_bounds is not None:
             ax.set_ylim(y_bounds[0], y_bounds[1])
         ax.yaxis.grid()
         ax.boxplot(x=plot_data, labels=approaches, showmeans=True)
     
-    plt.tight_layout(1.05)
+    plt.tight_layout(1.02)
+    plt.subplots_adjust(hspace=0.7)
     plt.savefig(out_path)
 
 
@@ -112,7 +115,7 @@ if __name__ == '__main__':
     plt.rcParams.update({'text.usetex': True, 'font.size':9})
     plt.close('all')
     
-    alg_groups = {'gen': ['r', 'R', 'G', 'B'], 'rl': ['B', 'P', 'S']}
+    alg_groups = {'gen': ['r', 'R', 'G', 'P'], 'rl': ['B', 'P', 'S']}
     
     for scenario in range(3):
         scenario_data = df.query(f'scenario == {scenario}')
