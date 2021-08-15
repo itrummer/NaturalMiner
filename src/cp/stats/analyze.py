@@ -74,10 +74,10 @@ def perf_plot(df, approaches, metric, y_bounds, y_label, out_path):
     """
     _, axes = plt.subplots(nrows=3, figsize=(3,3))
     scenario_names = ['Laptops (Size: 30 KB)', 
-                      'Liquors (Size: 5 GB)', 
-                      'Tools (Size: 10 MB)']
+                      'Tools (Size: 10 MB)',
+                      'Liquors (Size: 5 GB)']
     
-    for y_pos, scenario in enumerate([0, 2, 1]):        
+    for y_pos, scenario in enumerate([0, 1, 2]):        
         cur_df = df.query(f'scenario == {scenario}')
         df_pivot = cur_df.pivot(
             index=['testcase', 'nrfacts', 'nrpreds'], 

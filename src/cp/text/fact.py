@@ -112,7 +112,7 @@ class Fact():
         if rel_avg is None:
             return None, None
     
-        percent = int(rel_avg * 100)
+        percent = round(rel_avg * 100)
         percent_d = percent - 100
         if percent_d != 0:
             cmp_text = f'{abs(percent_d)}% '

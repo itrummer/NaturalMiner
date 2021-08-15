@@ -147,19 +147,20 @@ class GroupQuery():
         Returns:
             SQL select clause for query
         """
-        s_parts = [f'select count(*) as c']
-        s_parts += [f'sum(case when {self.cmp_pred} then 1 ' \
-                    'else 0 end) as cmp_c']
-        
+        s_parts = []
         if self.dims:
             s_parts += list(self.dims)
         
         for agg_col in self.aggs:
+            s_parts += [f'count({agg_col}) as c_{agg_col}']
+            s_parts += [f'sum(case when {self.cmp_pred} ' \
+                        f'and {agg_col} is not null then 1 ' \
+                        f'else 0 end) as cmp_c_{agg_col}']
             s_parts += [f'sum({agg_col}) as s_{agg_col}']
             s_parts += [f'sum(case when {self.cmp_pred} then {agg_col} ' \
                         f'else 0 end) as cmp_s_{agg_col}']
         
-        return ', '.join(s_parts)
+        return 'select ' + ', '.join(s_parts)
     
     def _sql_group(self):
         """  Generates group-by clause of cache query.

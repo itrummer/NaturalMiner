@@ -37,7 +37,7 @@ def print_details(env):
         print(f'{f}')
 
 
-def run_rl(connection, test_case, all_preds, nr_samples, c_type):
+def run_rl(connection, test_case, all_preds, nr_samples, c_type, cluster):
     """ Benchmarks primary method on test case.
     
     Args:
@@ -45,13 +45,15 @@ def run_rl(connection, test_case, all_preds, nr_samples, c_type):
         test_case: describes test case
         all_preds: ordered predicates
         c_type: type of cache to create
+        cluster: whether to cluster search space
         
     Returns:
         summaries with reward, performance statistics
     """
     start_s = time.time()
     env = cp.algs.rl.PickingEnv(
-        connection, **test_case, all_preds=all_preds, c_type=c_type)
+        connection, **test_case, all_preds=all_preds,
+        c_type=c_type, cluster=cluster)
     model = A2C(
         'MlpPolicy', env, verbose=True, 
         gamma=1.0, normalize_advantage=True)
@@ -65,18 +67,20 @@ def run_rl(connection, test_case, all_preds, nr_samples, c_type):
     return env.s_eval.text_to_reward, p_stats
 
 
-def run_sampling(connection, test_case, all_preds):
+def run_sampling(connection, test_case, all_preds, c_type):
     """ Run sampling algorithm. 
-    
+
     Args:
         connection: connection to database
         test_case: summarize for this test case
         all_preds: all available predicates
+        c_type: cache type to use for sampling
         
     Returns:
         summaries with quality, performance statistics
     """
-    sampler = cp.algs.sample.Sampler(connection, test_case, all_preds, 5)
+    sampler = cp.algs.sample.Sampler(
+        connection, test_case, all_preds, 5, c_type)
     text_to_reward, p_stats = sampler.run_sampling()
     
     return text_to_reward, p_stats
@@ -132,7 +136,8 @@ def log_line(outfile, b_id, t_id, nr_facts,
         sums: maps summaries to rewards
         p_stats: performance statistics
     """
-    sorted_sums = sorted(sums.items(), key=lambda s: s[1])
+    actual_sums = [i for i in sums.items() if i[0] is not None]
+    sorted_sums = sorted(actual_sums, key=lambda s: s[1])
     if sorted_sums:
         b_sum = sorted_sums[-1]
         w_sum = sorted_sums[0]
@@ -188,8 +193,6 @@ def main():
             
             test_batches = cp.bench.generate_testcases()
             for b_id, b in enumerate(test_batches):
-                # if b_id < 1:
-                    # continue
                 for t_id, t in enumerate(b):
                     for nr_facts in [1, 2, 3]:
                         for nr_preds in [1, 2, 3]:
@@ -202,22 +205,30 @@ def main():
                                 t['dim_cols'], t['cmp_pred'])
                             t['nr_facts'] = nr_facts
                             t['nr_preds'] = nr_preds
-                            
-                            sums, p_stats = run_sampling(
-                                connection, t, all_preds)
+                                                        
+                            sums, p_stats = run_rl(
+                                connection, t, all_preds, 
+                                nr_samples, 'proactive', False)
                             log_line(
                                 file, b_id, t_id, nr_facts, nr_preds, 
-                                'sample', sums, p_stats)
-                            
-                            for c_type in ['cube', 'empty', 'proactive']:
+                                'rlNCproactive', sums, p_stats)
+                                
+                            for c_type in ['empty', 'proactive']:
+                                
+                                sums, p_stats = run_sampling(
+                                    connection, t, all_preds, c_type)
+                                log_line(
+                                    file, b_id, t_id, nr_facts, nr_preds, 
+                                    'sample' + c_type, sums, p_stats)
+                                
                                 sums, p_stats = run_rl(
                                     connection, t, all_preds, 
-                                    nr_samples, c_type)
+                                    nr_samples, c_type, True)
                                 log_line(
                                     file, b_id, t_id, nr_facts, nr_preds, 
                                     'rl' + c_type, sums, p_stats)
                             timeout_s = p_stats['time']
-                                
+                            
                             sums, p_stats = run_random(
                                 connection, t, all_preds, 1, float('inf'))
                             log_line(

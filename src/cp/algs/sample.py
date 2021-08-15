@@ -16,7 +16,7 @@ import time
 class Sampler():
     """ Selects data summaries via sampling. """
     
-    def __init__(self, connection, test_case, all_preds, max_nr_sums):
+    def __init__(self, connection, test_case, all_preds, max_nr_sums, c_type):
         """ Initialize sampler, creates summary generator.
         
         Args:
@@ -24,11 +24,13 @@ class Sampler():
             test_case: description of scenario
             all_preds: all possible predicates
             max_nr_sums: maximal number of summaries on full data set
+            c_type: cache type used for sampling
         """
         self.connection = connection
         self.test_case = test_case
         self.all_preds = all_preds
         self.max_nr_sums = max_nr_sums
+        self.c_type = c_type
         self.table = test_case['table']
         self.cmp_pred = test_case['cmp_pred']
         self.dim_cols = test_case['dim_cols']
@@ -64,6 +66,23 @@ class Sampler():
             total_cost += cost
         
         return total_cost
+    
+    def _create_sample(self, nr_rows):
+        """ Creates table containing sample from source.
+        
+        Args:
+            nr_rows: maximal number of rows in sample table
+        
+        Returns:
+            name of table containing sample
+        """
+        sample_tbl = f'{self.table}_sample'
+        with self.connection.cursor() as cursor:
+            cursor.execute(f'drop table if exists {sample_tbl}')
+            cursor.execute(f'create unlogged table {sample_tbl} as ' \
+                           f'(select * from {self.table} limit {nr_rows})')
+        
+        return sample_tbl
     
     def _fill_cache(self, sam_sums):
         """ Fill cache with query results needed to generate summaries.
@@ -177,13 +196,13 @@ class Sampler():
             summaries sorted by estimated quality (descending), statistics
         """
         sample_case = self.test_case.copy()
-        full_table = self.test_case['table']
-        table_sample = f'(select * from {full_table} limit 10000) as S'
+        table_sample = self._create_sample(10000)
         sample_case['table'] = table_sample
     
         env = cp.algs.rl.PickingEnv(
             self.connection, **sample_case, 
-            all_preds=self.all_preds, c_type='empty')
+            all_preds=self.all_preds, 
+            c_type=self.c_type, cluster=True)
         model = A2C(
             'MlpPolicy', env, verbose=True, 
             gamma=1.0, normalize_advantage=True)

@@ -91,10 +91,10 @@ class DynamicCache(AggCache):
             rows: result rows of caching query
         """
         for r in rows:
-            cmp_c = r['cmp_c']
-            if cmp_c > 0:
-                c = r['c']
-                for agg in g_query.aggs:
+            for agg in g_query.aggs:
+                cmp_c = r[f'cmp_c_{agg}']
+                if cmp_c > 0:
+                    c = r[f'c_{agg}']
                     s = r[f's_{agg}']
                     if s is not None and s > 0:
                         cmp_s = r[f'cmp_s_{agg}']

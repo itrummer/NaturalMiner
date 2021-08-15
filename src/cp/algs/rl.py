@@ -22,12 +22,13 @@ import torch
 class EmbeddingGraph():
     """ Graph connecting nodes with similar label embeddings. """
 
-    def __init__(self, labels, degree):
+    def __init__(self, labels, degree, cluster):
         """ Generate graph with given labels.
         
         Args:
             labels: text labels for nodes
             degree: number of neighbors per node
+            cluster: whether to cluster nodes by embedding
         """
         model = SentenceTransformer('paraphrase-MiniLM-L12-v2')
         self.embeddings = model.encode(labels, convert_to_tensor=True)
@@ -38,8 +39,11 @@ class EmbeddingGraph():
         for i in range(nr_labels):
             prefs = cosine_sims[i,i:nr_labels]
             k = min(prefs.shape[0], degree)
-            _, indices = torch.topk(prefs, k)
-            l_indices = indices.tolist()
+            if cluster:
+                _, indices = torch.topk(prefs, k)
+                l_indices = indices.tolist()
+            else:
+                l_indices = list(range(i, i+k))
             l_indices += [0] * (degree - k)
             self.neighbors.append(l_indices)
 
@@ -89,7 +93,7 @@ class PickingEnv(gym.Env):
     def __init__(self, connection, table, dim_cols, 
                  agg_cols, cmp_pred, nr_facts, nr_preds,
                  degree, max_steps, preamble, dims_tmp, 
-                 aggs_txt, all_preds, c_type):
+                 aggs_txt, all_preds, c_type, cluster):
         """ Read database to initialize environment. 
         
         Args:
@@ -107,6 +111,7 @@ class PickingEnv(gym.Env):
             aggs_txt: assigns each aggregate to text snippet
             all_preds: all possible predicates
             c_type: type of cache to create
+            cluster: whether to cluster search space by embedding
         """
         super(PickingEnv, self).__init__()
         self.connection = connection
@@ -122,10 +127,10 @@ class PickingEnv(gym.Env):
         self.dims_tmp = dims_tmp
         self.aggs_txt = aggs_txt
         
-        self.agg_graph = EmbeddingGraph(agg_cols, degree)
+        self.agg_graph = EmbeddingGraph(agg_cols, degree, cluster)
         self.all_preds = all_preds
         pred_labels = [f'{p} is {v}' for p, v in self.all_preds]
-        self.pred_graph = EmbeddingGraph(pred_labels, degree)
+        self.pred_graph = EmbeddingGraph(pred_labels, degree, cluster)
         
         if c_type == 'dynamic':
             self.cache = cp.cache.dynamic.DynamicCache(connection)

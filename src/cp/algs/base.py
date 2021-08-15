@@ -146,7 +146,7 @@ def gen_rl(timeout_s, **kwargs):
                     dim=1).tolist()[0]
                 mnli_reward = mnli_pred[2]
                 
-                reward = pos_reward + mnli_reward
+                reward = 0.2 * pos_reward + 0.8 * mnli_reward
                 reward_pt = torch.tensor([reward])
                 
             ppo_trainer.step(prompt_pt, sum_pt, reward_pt)
