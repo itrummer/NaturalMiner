@@ -87,7 +87,7 @@ scenarios = [
             },
         'cmp_col':'airline',
         'predicates':[
-            "airline='NK'", "airline='WN", "airline='DL'", 
+            "airline='NK'", "airline='WN'", "airline='DL'", 
             "airline='AA'", "airline='OH'" 
             ]
     },
