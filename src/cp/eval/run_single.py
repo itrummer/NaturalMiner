@@ -6,7 +6,7 @@ Created on Jun 6, 2021
 import argparse
 import cp.algs.base
 import cp.algs.sample
-import cp.bench
+import cp.eval
 import cp.algs.rl
 import cp.sql.pred
 import logging
@@ -191,7 +191,7 @@ def main():
                               cursor_factory=RealDictCursor) as connection:
             connection.autocommit = True
             
-            test_batches = cp.bench.generate_testcases()
+            test_batches = cp.eval.bench.generate_testcases()
             for b_id, b in enumerate(test_batches):
                 for t_id, t in enumerate(b):
                     for nr_facts in [1, 2, 3]:

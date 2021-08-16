@@ -15,6 +15,7 @@ scenarios = [
                         'with <V> disk space', 'with <V> stars'],
             'aggs_txt':['its display size', 'its discounted price', 'its old price']
             },
+        'cmp_col':'laptop_name',
         'predicates':[
             "laptop_name='Swift 3 SF314-54G-87HB'", 
             "laptop_name='XPS 15 9570'",
@@ -42,6 +43,7 @@ scenarios = [
                         'working <V>', 'who are <V>', 'who work as <V>', 'who are <V>'],
             'aggs_txt':[', the salary']
             },
+        'cmp_col':'languagesused',
         'predicates':[
             "languagesused like '%Bash%'",
             "languagesused like '%HTML%'",
@@ -59,17 +61,16 @@ scenarios = [
                         'wheels_on_time', 'planned_arrival_time',
                         'actual_arrival_time', 'cancelled',
                         'cancellation_code', 'diverted',
-                        'planned_flight_time', 'distance',
-                        'carrier_delay', 'weather_delay',
-                        'system_delay', 'security_delay',
-                        'late_aircraft_delay'],
+                        'planned_flight_time', 
+                        'distance'],
             'agg_cols':['departure_delay', 'taxi_out_time', 'taxi_in_time',
                         'arrival_delay', 'actual_time', 'air_time',
-                        'carrier_delay', 'weather_delay', 'system_delay'],
+                        'carrier_delay', 'weather_delay', 'system_delay',
+                        'security_delay', 'late_aircraft_delay'],
             'nr_facts':1, 'nr_preds':2, 'degree':5, 'max_steps':20,
             'preamble':'Among all flights',
-            'dims_tmp':['on <V>', 'with number <V>', 'from <V>', 'to <V>',
-                        'scheduled for departure at <V>', 
+            'dims_tmp':['on <V>', 'with number <V>', 'from <V>', 
+                        'to <V>', 'scheduled for departure at <V>', 
                         'that departed at <V>', 'that took off at <V>',
                         'that landed at <V>', 'scheduled to arrive at <V>',
                         'that arrived at <V>', 'that were <V>',
@@ -82,9 +83,9 @@ scenarios = [
                         ', the arrival delay', ', the actual flight time',
                         ', the air time', ', the carrier delay',
                         ', weather delay', ', airport operations delay',
-                        ', security delay', ', delay to to late aircrafts'
-                        ]
+                        ', security delay', ', delay to to late aircrafts']
             },
+        'cmp_col':'airline',
         'predicates':[
             "airline='NK'", "airline='WN", "airline='DL'", 
             "airline='AA'", "airline='OH'" 
@@ -103,6 +104,7 @@ scenarios = [
             'aggs_txt':[', the number of bottles per sale', 
                         ', the dollar value per sale', ', the volume per sale']
             },
+        'cmp_col':'itemname',
         'predicates':[
             "itemname='Johnnie Walker Black'",
             "itemname='Crown Royal Regal Apple Mini'",
