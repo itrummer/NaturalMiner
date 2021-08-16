@@ -171,6 +171,8 @@ class Sampler():
     
         if sam_sums:
             stats = self._fill_cache(sam_sums)
+        else:
+            stats = {}
         
         nr_sums = min(len(sam_sums), self.max_nr_sums)
         for facts in sam_sums[0:nr_sums]:
