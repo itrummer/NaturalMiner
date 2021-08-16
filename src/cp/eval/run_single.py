@@ -6,7 +6,7 @@ Created on Jun 6, 2021
 import argparse
 import cp.algs.base
 import cp.algs.sample
-import cp.eval
+import cp.eval.bench
 import cp.algs.rl
 import cp.sql.pred
 import logging
