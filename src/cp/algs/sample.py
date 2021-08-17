@@ -200,7 +200,9 @@ class Sampler():
         sample_case = self.test_case.copy()
         table_sample = self._create_sample(10000)
         sample_case['table'] = table_sample
-    
+        cmp_pred = sample_case['cmp_pred']
+        del sample_case['cmp_pred']
+        sample_case['cmp_preds'] = [cmp_pred]
         env = cp.algs.rl.PickingEnv(
             self.connection, **sample_case, 
             all_preds=self.all_preds, 

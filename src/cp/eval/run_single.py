@@ -51,8 +51,12 @@ def run_rl(connection, test_case, all_preds, nr_samples, c_type, cluster):
         summaries with reward, performance statistics
     """
     start_s = time.time()
+    cmp_pred = test_case['cmp_pred']
+    test_copy = test_case.copy()
+    del test_copy['cmp_pred']
+    test_copy['cmp_preds'] = [cmp_pred]
     env = cp.algs.rl.PickingEnv(
-        connection, **test_case, all_preds=all_preds,
+        connection, **test_copy, all_preds=all_preds,
         c_type=c_type, cluster=cluster)
     model = A2C(
         'MlpPolicy', env, verbose=True, 

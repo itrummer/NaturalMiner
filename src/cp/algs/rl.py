@@ -17,6 +17,7 @@ from sentence_transformers import SentenceTransformer, util
 import gym
 import logging
 import numpy as np
+import statistics
 import torch
 
 class EmbeddingGraph():
@@ -88,10 +89,10 @@ class EmbeddingGraph():
         return reachable
 
 class PickingEnv(gym.Env):
-    """ Environment for selecting facts for a data summary. """
+    """ Environment for selecting facts for data summaries. """
     
     def __init__(self, connection, table, dim_cols, 
-                 agg_cols, cmp_pred, nr_facts, nr_preds,
+                 agg_cols, cmp_preds, nr_facts, nr_preds,
                  degree, max_steps, preamble, dims_tmp, 
                  aggs_txt, all_preds, c_type, cluster):
         """ Read database to initialize environment. 
@@ -101,7 +102,7 @@ class PickingEnv(gym.Env):
             table: name of table to extract facts
             dim_cols: names of all property columns
             agg_cols: name of columns for aggregation
-            cmp_pred: compare data satisfying this predicate
+            cmp_preds: list of comparison predicates
             nr_facts: at most that many facts in description
             nr_preds: at most that many predicates per fact
             degree: degree for all transition graphs
@@ -118,7 +119,8 @@ class PickingEnv(gym.Env):
         self.table = table
         self.dim_cols = dim_cols
         self.agg_cols = agg_cols
-        self.cmp_pred = cmp_pred
+        self.cmp_preds = cmp_preds
+        self.nr_items = len(cmp_preds)
         self.nr_facts = nr_facts
         self.nr_preds = nr_preds
         self.degree = degree
@@ -132,30 +134,26 @@ class PickingEnv(gym.Env):
         pred_labels = [f'{p} is {v}' for p, v in self.all_preds]
         self.pred_graph = EmbeddingGraph(pred_labels, degree, cluster)
         
-        if c_type == 'dynamic':
-            self.cache = cp.cache.dynamic.DynamicCache(connection)
-            self.proactive = False
-        elif c_type == 'empty':
-            self.cache = cp.cache.static.EmptyCache()
-            self.proactive = False
-        elif c_type == 'cube':
-            self.cache = cp.cache.static.CubeCache(
-                connection, table, dim_cols, cmp_pred, agg_cols, 900)
-            self.proactive = False
-        elif c_type == 'proactive':
-            self.cache = cp.cache.proactive.ProCache(
-                connection, table, cmp_pred, nr_facts, 
-                nr_preds, all_preds, self.pred_graph,
-                agg_cols, self.agg_graph)
-            self.proactive = True
-        else:
-            raise ValueError(f'Unknown cache type: {c_type}')
-        self.q_engine = QueryEngine(connection, table, cmp_pred, self.cache)
+        self.proactive = True if c_type == 'proactive' else False
+        self.caches = []
+        self.q_engines = []
+        self.s_gens = []
+        for cmp_pred in cmp_preds:
+            cache = self._create_cache(
+                connection, table, dim_cols, 
+                cmp_pred, agg_cols, nr_facts, 
+                nr_preds, all_preds, c_type)
+            q_engine = QueryEngine(
+                connection, table, 
+                cmp_pred, cache)
+            s_gen = SumGenerator(
+                all_preds, preamble, dim_cols, 
+                dims_tmp, agg_cols, aggs_txt, 
+                q_engine)
+            self.caches.append(cache)
+            self.q_engines.append(q_engine)
+            self.s_gens.append(s_gen)
 
-        self.s_gen = SumGenerator(
-            all_preds, preamble, dim_cols, 
-            dims_tmp, agg_cols, aggs_txt, 
-            self.q_engine)
         self.s_eval = SumEvaluator()
         self.props_to_rewards = {}
         self.props_to_conf = {}
@@ -191,11 +189,15 @@ class PickingEnv(gym.Env):
         Returns:
             Dictionary with performance statistics
         """
-        stats = {}
-        stats.update(self.q_engine.statistics())
-        stats.update(self.cache.statistics())
-        stats.update(self.s_gen.statistics())
+        stats = defaultdict(lambda:0)
         stats.update(self.s_eval.statistics())
+        for cache in self.caches:
+            stats.update(cache.statistics())
+        for engine in self.q_engines:
+            stats.update(engine.statistics())
+        for gen in self.s_gens:
+            stats.update(gen.statistics())
+        
         return stats
 
     def step(self, action):
@@ -220,19 +222,61 @@ class PickingEnv(gym.Env):
             self.cur_facts[fact_idx].change(prop_idx, new_val)
             
             done = False
-            if self.proactive:
-                self.cache.set_cur_facts(self.cur_facts)
-            self.cache.update()
+            for cache in self.caches:
+                if self.proactive:
+                    cache.set_cur_facts(self.cur_facts)
+                cache.update()
             reward = self._evaluate()
         
         return self._observe(), reward, done, {}
 
+    def _create_cache(self, connection, table, dim_cols, cmp_pred, 
+                      agg_cols, nr_facts, nr_preds, all_preds, c_type):
+        """ Creates a cache object as specified.
+        
+        Args:
+            connection: connection to database
+            table: cache stores results of queries on this table
+            dim_cols: dimension columns
+            cmp_pred: compare data subsets defined by this predicate
+            agg_cols: aggregation columns
+            nr_facts: summary contains so many facts
+            nr_preds: maximal number of predicates per fact
+            all_preds: all possible predicates on dimensions
+            c_type: string identifier of cache type
+        Returns:
+            newly created cache object
+        """
+        if c_type == 'dynamic':
+            cache = cp.cache.dynamic.DynamicCache(connection)
+        elif c_type == 'empty':
+            cache = cp.cache.static.EmptyCache()
+        elif c_type == 'cube':
+            cache = cp.cache.static.CubeCache(
+                connection, table, dim_cols, cmp_pred, agg_cols, 900)
+        elif c_type == 'proactive':
+            cache = cp.cache.proactive.ProCache(
+                connection, table, cmp_pred, nr_facts, 
+                nr_preds, all_preds, self.pred_graph,
+                agg_cols, self.agg_graph)
+        else:
+            raise ValueError(f'Unknown cache type: {c_type}')
+        return cache
+
     def _evaluate(self):
         """ Evaluate quality of current summary. """
-        text, conf = self.s_gen.generate(self.cur_facts)
-        reward = self.s_eval.evaluate(text)
-        self._save_eval_results(reward, conf)
-        return reward
+        confs = []
+        rewards = []
+        for gen in self.s_gens:
+            text, conf = gen.generate(self.cur_facts)
+            reward = self.s_eval.evaluate(text)
+            confs.append(conf)
+            rewards.append(reward)
+        
+        mean_conf = statistics.mean(confs)
+        mean_reward = statistics.mean(rewards)
+        self._save_eval_results(mean_reward, mean_conf)
+        return mean_reward
 
     def _observe(self):
         """ Returns observations for learning agent. """

@@ -15,6 +15,7 @@ import numpy as np
 import random
 from sklearn.cluster import KMeans
 from stable_baselines3 import A2C, PPO
+import statistics
 
 def eval_solution(connection, batch, all_preds, solution):
     """ Evaluates solution to batch summarization problem.
@@ -134,6 +135,7 @@ class ClusterEnv(gym.Env):
         clusters = self._cluster(weights)
         self.last_clusters = clusters
         reward = self._eval_clusters(clusters)
+        logging.debug(f'Reward {reward} for clusters {clusters}')
         return 0, reward, False, {}
     
     def _cluster(self, weights):
@@ -187,7 +189,10 @@ class ClusterEnv(gym.Env):
         eval_sol = eval_solution(
             self.connection, cluster_batch, 
             self.all_preds, solution)
-        return max([r for (_, r) in eval_sol.values()])
+
+        mean = statistics.mean([r for (_, r) in eval_sol.values()])
+        logging.debug(f'Mean {mean} for {eval_sol}')
+        return mean
 
 class BatchProcessor():
     """ Generates summaries for item clusters. """
