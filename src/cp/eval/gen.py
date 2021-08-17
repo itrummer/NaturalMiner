@@ -24,7 +24,8 @@ if __name__ == '__main__':
             cmp_col = scenario['cmp_col']
             with connection.cursor() as cursor:
                 table = scenario['general']['table']
-                sql = f'select distinct {cmp_col} from {table}'
+                sql = f'select distinct {cmp_col} from {table} ' \
+                    f'where {cmp_col} is not null'
                 cursor.execute(sql)
                 cmp_vals = [v[0] for v in cursor.fetchall()]
                 
