@@ -270,10 +270,11 @@ class PickingEnv(gym.Env):
         for gen in self.s_gens:
             text, conf = gen.generate(self.cur_facts)
             reward = self.s_eval.evaluate(text)
-            confs.append(conf)
             rewards.append(reward)
+            if conf is not None:
+                confs.append(conf)
         
-        mean_conf = statistics.mean(confs)
+        mean_conf = statistics.mean(confs) if confs else 0
         mean_reward = statistics.mean(rewards)
         self._save_eval_results(mean_reward, mean_conf)
         return mean_reward

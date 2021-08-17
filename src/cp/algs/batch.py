@@ -68,11 +68,10 @@ def simple_batch(connection, batch, all_preds):
     Returns:
         Dictionary mapping each predicate to summary template
     """
-    nr_cmp_preds = len(batch['predicates'])
-    pred_idx = random.randint(0, nr_cmp_preds-1)
-    cmp_pred = batch['predicates'][pred_idx]
+    all_cmp_preds = batch['predicates']
+    cmp_preds = random.choices(all_cmp_preds, k=2)
     test_case = batch['general'].copy()
-    test_case['cmp_pred'] = cmp_pred
+    test_case['cmp_preds'] = cmp_preds
     
     env = cp.algs.rl.PickingEnv(
         connection, **test_case, all_preds=all_preds,
@@ -156,7 +155,7 @@ class ClusterEnv(gym.Env):
             w_features.append(cur_w_features)
         
         X = np.array(w_features)
-        kmeans = KMeans(n_clusters=5).fit(X)
+        kmeans = KMeans(n_clusters=10).fit(X)
         
         clusters = collections.defaultdict(lambda:set())
         for item, label in enumerate(kmeans.labels_):
@@ -181,7 +180,7 @@ class ClusterEnv(gym.Env):
         # generate summary and estimate generalization for items in cluster
         cluster_items = list(clusters[c_id])
         cluster_batch = self.batch.copy()
-        cluster_batch['predicates'] = random.choices(cluster_items, k=3)
+        cluster_batch['predicates'] = random.choices(cluster_items, k=5)
         
         solution = simple_batch(
             self.connection, cluster_batch, 
@@ -225,7 +224,7 @@ class BatchProcessor():
         model = A2C(
             'MlpPolicy', self.cluster_env, verbose=True, 
             gamma=1.0, normalize_advantage=True)
-        model.learn(total_timesteps=10)
+        model.learn(total_timesteps=50)
         clusters = self.cluster_env.last_clusters
         logging.info(f'Clusters: {clusters}')
         
