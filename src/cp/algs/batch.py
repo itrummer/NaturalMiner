@@ -68,7 +68,7 @@ def simple_batch(connection, batch, all_preds):
         Dictionary mapping each predicate to summary template
     """
     nr_cmp_preds = len(batch['predicates'])
-    pred_idx = random.randint(0, nr_cmp_preds)
+    pred_idx = random.randint(0, nr_cmp_preds-1)
     cmp_pred = batch['predicates'][pred_idx]
     test_case = batch['general'].copy()
     test_case['cmp_pred'] = cmp_pred
@@ -116,9 +116,13 @@ class ClusterEnv(gym.Env):
         self.raw_features = raw_features
         self.nr_items = len(cmp_preds)
         self.action_space = spaces.Box(
-            low=0, high=1, shape=(nr_features), dtype=np.float32)
+            low=0, high=1, shape=(nr_features,), 
+            dtype=np.float32)
         self.observation_space = spaces.Discrete(1)
         self.last_clusters = None
+    
+    def reset(self):
+        return 0
         
     def step(self, action):
         """ Executes one step of reinforcement learning. 
@@ -173,18 +177,17 @@ class ClusterEnv(gym.Env):
         c_id = [c for c, items in clusters.items() if cmp_pred in items][0]
         
         # generate summary and estimate generalization for items in cluster
-        cluster_items = clusters[c_id]
+        cluster_items = list(clusters[c_id])
         cluster_batch = self.batch.copy()
-        cluster_batch['predicates'] = random.choices(cluster_items, 3)
+        cluster_batch['predicates'] = random.choices(cluster_items, k=3)
         
         solution = simple_batch(
             self.connection, cluster_batch, 
             self.all_preds)
-        reward = eval_solution(
+        eval_sol = eval_solution(
             self.connection, cluster_batch, 
             self.all_preds, solution)
-
-        return reward
+        return max([r for (_, r) in eval_sol.values()])
 
 class BatchProcessor():
     """ Generates summaries for item clusters. """
@@ -251,7 +254,7 @@ class BatchProcessor():
                 cursor.execute(sql)
                 row = cursor.fetchone()
                 result = [row[a] for a in agg_cols]
-                result = [r if r is not None else 0 for r in result]
+                result = [float(r) if r is not None else 0 for r in result]
                 results[cmp_pred] = result
         
         return nr_features, results
