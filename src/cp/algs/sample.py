@@ -16,19 +16,22 @@ import time
 class Sampler():
     """ Selects data summaries via sampling. """
     
-    def __init__(self, connection, test_case, all_preds, max_nr_sums, c_type):
+    def __init__(self, connection, test_case, all_preds, 
+                 sample_ratio, max_nr_sums, c_type):
         """ Initialize sampler, creates summary generator.
         
         Args:
             connection: connection to database
             test_case: description of scenario
             all_preds: all possible predicates
+            sample_ratio: sample at least this ratio of the rows
             max_nr_sums: maximal number of summaries on full data set
             c_type: cache type used for sampling
         """
         self.connection = connection
         self.test_case = test_case
         self.all_preds = all_preds
+        self.sample_ratio = sample_ratio
         self.max_nr_sums = max_nr_sums
         self.c_type = c_type
         self.table = test_case['table']
@@ -67,20 +70,21 @@ class Sampler():
         
         return total_cost
     
-    def _create_sample(self, nr_rows):
+    def _create_sample(self):
         """ Creates table containing sample from source.
-        
-        Args:
-            nr_rows: maximal number of rows in sample table
         
         Returns:
             name of table containing sample
         """
+        total_rows, _ = cp.sql.cost.estimates(
+            self.connection, f'select * from {self.table}')
+        sample_rows = int(max(10000, total_rows * self.sample_ratio))
+        
         sample_tbl = f'{self.table}_sample'
         with self.connection.cursor() as cursor:
             cursor.execute(f'drop table if exists {sample_tbl}')
             cursor.execute(f'create unlogged table {sample_tbl} as ' \
-                           f'(select * from {self.table} limit {nr_rows})')
+                           f'(select * from {self.table} limit {sample_rows})')
         
         return sample_tbl
     
@@ -201,7 +205,7 @@ class Sampler():
             summaries sorted by estimated quality (descending), statistics
         """
         sample_case = self.test_case.copy()
-        table_sample = self._create_sample(10000)
+        table_sample = self._create_sample()
         sample_case['table'] = table_sample
         cmp_pred = sample_case['cmp_pred']
         del sample_case['cmp_pred']

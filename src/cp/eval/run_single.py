@@ -84,7 +84,7 @@ def run_sampling(connection, test_case, all_preds, c_type):
         summaries with quality, performance statistics
     """
     sampler = cp.algs.sample.Sampler(
-        connection, test_case, all_preds, 5, c_type)
+        connection, test_case, all_preds, 0.01, 5, c_type)
     text_to_reward, p_stats = sampler.run_sampling()
     
     return text_to_reward, p_stats
@@ -218,7 +218,6 @@ def main():
                                 'rlNCproactive', sums, p_stats)
                                 
                             for c_type in ['empty', 'proactive']:
-                                
                                 sums, p_stats = run_sampling(
                                     connection, t, all_preds, c_type)
                                 log_line(
