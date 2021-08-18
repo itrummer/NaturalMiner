@@ -58,18 +58,18 @@ if __name__ == '__main__':
                     connection, batch['general']['table'], 
                     batch['general']['dim_cols'], 'true')
 
-            # start_s = time.time()
-            # solution = cp.algs.batch.simple_batch(
-                # connection, batch, all_preds)
-            # result = cp.algs.batch.eval_solution(
-                # connection, batch, all_preds, solution)
-            # total_s = time.time() - start_s
-            # log_results('simple', total_s, result, out_file)
-            
             start_s = time.time()
-            bp = cp.algs.batch.BatchProcessor(connection, batch, all_preds)
-            solution = bp.summarize()
+            solution = cp.algs.batch.simple_batch(
+                connection, batch, all_preds)
             result = cp.algs.batch.eval_solution(
                 connection, batch, all_preds, solution)
             total_s = time.time() - start_s
-            log_results('clusters', total_s, result, out_file)
+            log_results('simple', total_s, result, out_file)
+            
+            # start_s = time.time()
+            # bp = cp.algs.batch.BatchProcessor(connection, batch, all_preds)
+            # solution = bp.summarize()
+            # result = cp.algs.batch.eval_solution(
+                # connection, batch, all_preds, solution)
+            # total_s = time.time() - start_s
+            # log_results('clusters', total_s, result, out_file)

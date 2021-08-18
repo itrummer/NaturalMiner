@@ -72,12 +72,12 @@ def perf_plot(df, approaches, metric, y_bounds, y_label, out_path):
         y_label: axis label for y axis
         out_path: write output plot to this file
     """
-    _, axes = plt.subplots(nrows=3, figsize=(3,3))
+    _, axes = plt.subplots(nrows=4, figsize=(3,4))
     scenario_names = ['Laptops (Size: 30 KB)', 
                       'Tools (Size: 10 MB)',
+                      'Flights (Size: 900 MB)',
                       'Liquors (Size: 5 GB)']
-    
-    for y_pos, scenario in enumerate([0, 1, 2]):        
+    for y_pos, scenario in enumerate([0, 1, 2, 3]):
         cur_df = df.query(f'scenario == {scenario}')
         df_pivot = cur_df.pivot(
             index=['testcase', 'nrfacts', 'nrpreds'], 
@@ -107,7 +107,8 @@ if __name__ == '__main__':
     df = pd.read_csv(args.results_path, sep='\t')
     methods_short = {
         'rand1':'r', 'rand':'R', 'gen':'G', 'rlempty':'B',
-        'sample':'S', 'rlcube':'C', 'rlproactive':'P'}
+        'sampleempty':'SB', 'sampleproactive':'SP', 
+        'rlcube':'C', 'rlproactive':'P', 'rlNCproactive':'PN'}
     df['approach'] = df['approach'].apply(lambda a:methods_short[a])
     df['fquality'] = df['bquality'].apply(lambda q:max(q,-1))
     print(df.info())
@@ -115,9 +116,9 @@ if __name__ == '__main__':
     plt.rcParams.update({'text.usetex': True, 'font.size':9})
     plt.close('all')
     
-    alg_groups = {'gen': ['r', 'R', 'G', 'P'], 'rl': ['B', 'P', 'S']}
+    alg_groups = {'gen': ['r', 'R', 'G', 'P'], 'rl': ['B', 'P', 'SB', 'SP']}
     
-    for scenario in range(3):
+    for scenario in range(4):
         scenario_data = df.query(f'scenario == {scenario}')
         path_prefix = f'plots/S{scenario}_'
         

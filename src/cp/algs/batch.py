@@ -119,7 +119,8 @@ class ClusterEnv(gym.Env):
             low=0, high=1, shape=(nr_features,), 
             dtype=np.float32)
         self.observation_space = spaces.Discrete(1)
-        self.last_clusters = None
+        self.best_clusters = None
+        self.best_reward = float('-inf')
     
     def reset(self):
         return 0
@@ -132,9 +133,13 @@ class ClusterEnv(gym.Env):
         """
         weights = action
         clusters = self._cluster(weights)
-        self.last_clusters = clusters
         reward = self._eval_clusters(clusters)
-        logging.debug(f'Reward {reward} for clusters {clusters}')
+        if reward > self.best_reward:
+            self.best_clusters = clusters
+
+        logging.debug(f'Reward {reward} for weights {weights}')
+        for c_id, c_items in clusters.items():
+            logging.debug(f'Cluster {c_id}: {c_items}')
         return 0, reward, False, {}
     
     def _cluster(self, weights):
@@ -155,7 +160,7 @@ class ClusterEnv(gym.Env):
             w_features.append(cur_w_features)
         
         X = np.array(w_features)
-        kmeans = KMeans(n_clusters=10).fit(X)
+        kmeans = KMeans(n_clusters=5).fit(X)
         
         clusters = collections.defaultdict(lambda:set())
         for item, label in enumerate(kmeans.labels_):
@@ -224,8 +229,8 @@ class BatchProcessor():
         model = A2C(
             'MlpPolicy', self.cluster_env, verbose=True, 
             gamma=1.0, normalize_advantage=True)
-        model.learn(total_timesteps=50)
-        clusters = self.cluster_env.last_clusters
+        model.learn(total_timesteps=20)
+        clusters = self.cluster_env.best_clusters
         logging.info(f'Clusters: {clusters}')
         
         result = {}
@@ -261,4 +266,5 @@ class BatchProcessor():
                 result = [float(r) if r is not None else 0 for r in result]
                 results[cmp_pred] = result
         
+        logging.debug(results)
         return nr_features, results

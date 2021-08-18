@@ -93,6 +93,7 @@ class Sampler():
         Returns:
             statistics on efficiency of merge step
         """
+        logging.debug(f'Filling cache for summaries: {sam_sums}')
         stats = {}
         # collect queries associated with facts
         queries = []
@@ -102,6 +103,8 @@ class Sampler():
                     self.table, self.all_preds,
                     self.cmp_pred, self.agg_cols, fact)
                 queries += [a_q]
+        
+        logging.debug(f'Raw queries to cache: {queries}')
         
         # merge queries with same aggregates and dimensions
         g_merged = []
@@ -117,7 +120,7 @@ class Sampler():
             if not is_merged:
                 g_query = GroupQuery.from_query(a_query)
                 g_merged += [g_query]
-                
+
         # merge queries with same dimensions until cost increases
         min_g_qs = g_merged.copy()
         min_cost = self._cost(g_merged)
@@ -135,7 +138,7 @@ class Sampler():
             
             improved = False
             if sims:
-                g1, g2, _ = min(sims, key=lambda s:s[2])
+                g1, g2, _ = max(sims, key=lambda s:s[2])
                 gm = GroupQuery(self.table, g1.dims, self.cmp_pred)
                 gm.preds.update(g1.preds)
                 gm.preds.update(g2.preds)
@@ -169,14 +172,14 @@ class Sampler():
         """
         text_to_reward = {}
     
-        if sam_sums:
-            stats = self._fill_cache(sam_sums)
+        nr_sums = min(len(sam_sums), self.max_nr_sums)
+        sel_sums = sam_sums[0:nr_sums]
+        if sel_sums:
+            stats = self._fill_cache(sel_sums)
         else:
             stats = {}
         
-        nr_sums = min(len(sam_sums), self.max_nr_sums)
-        for facts in sam_sums[0:nr_sums]:
-            
+        for facts in sel_sums:
             queries = []
             for fact in facts:
                 query = AggQuery.from_fact(
