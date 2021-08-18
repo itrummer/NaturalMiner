@@ -68,11 +68,18 @@ def simple_batch(connection, batch, all_preds):
     Returns:
         Dictionary mapping each predicate to summary template
     """
-    all_cmp_preds = batch['predicates']
-    cmp_preds = random.choices(all_cmp_preds, k=2)
     test_case = batch['general'].copy()
+    all_cmp_preds = batch['predicates']
+    src_table = batch['general']['table']
+
+    full_card = cp.sql.cost.cardinality(connection, src_table)
+    sample_card = max(full_card * 0.01, 10000)
+    sample = f'(select * from {src_table} limit {sample_card}) as T'
+    test_case['table'] = sample
+        
+    cmp_preds = random.choices(all_cmp_preds, k=3)
     test_case['cmp_preds'] = cmp_preds
-    
+
     env = cp.algs.rl.PickingEnv(
         connection, **test_case, all_preds=all_preds,
         c_type='empty', cluster=True)
@@ -224,7 +231,7 @@ class BatchProcessor():
         """ Generates summaries for clusters of items.
         
         Returns:
-            dictionary mapping items to a summary template
+            dictionary mapping cluster IDs to a solution (item->summary)
         """
         model = A2C(
             'MlpPolicy', self.cluster_env, verbose=True, 
@@ -234,13 +241,12 @@ class BatchProcessor():
         logging.info(f'Clusters: {clusters}')
         
         result = {}
-        for cmp_preds in clusters.values():
+        for c_id, cmp_preds in clusters.items():
             logging.info(f'Processing cluster {cmp_preds}')
             cluster_batch = self.batch.copy()
             cluster_batch['predicates'] = list(cmp_preds)
-            result.update(
-                simple_batch(
-                    self.connection, cluster_batch, self.all_preds))
+            result[c_id] = simple_batch(
+                self.connection, cluster_batch, self.all_preds)
         
         return result
     
@@ -252,14 +258,28 @@ class BatchProcessor():
         """
         results = {}
         agg_cols = self.batch['general']['agg_cols']
-        nr_features = len(agg_cols)
+        dim_cols = self.batch['general']['dim_cols']
+        
         with self.connection.cursor() as cursor:
+            
+            agg_features = [f'avg({a}) as {a}' for a in agg_cols]
+            for agg_col in agg_cols:
+                for dim_col in dim_cols:
+                    sql = f'select {dim_col} as val from {self.table} limit 1'
+                    cursor.execute(sql)
+                    row = cursor.fetchone()
+                    val = row['val']
+                    agg_feature = f"(select sum(case when {dim_col} = '{val}' " \
+                        f"then {agg_col} else 0 end))/(select count({agg_col}))"
+                    agg_features.append(agg_feature)
+            
+            nr_features = len(agg_features)
+            
             for cmp_pred in self.cmp_preds:
-                
-                s_items = [f'avg({a}) as {a}' for a in agg_cols]
-                sql = 'select ' + ', '.join(s_items) + \
-                    ' from ' + self.table + \
-                    ' where ' + cmp_pred + ' limit 10000'
+                sql = 'select ' + ', '.join(agg_features) + \
+                    ' from (select * from ' + self.table + \
+                    ' limit 10000) as T where ' + cmp_pred
+                logging.debug(f'Feature query: {sql}')
                 cursor.execute(sql)
                 row = cursor.fetchone()
                 result = [row[a] for a in agg_cols]

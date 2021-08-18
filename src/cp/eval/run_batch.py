@@ -13,20 +13,17 @@ from psycopg2.extras import RealDictCursor
 import time
 
 
-def log_results(prefix, total_s, result, out_file):
+def log_results(prefix, avg_s, result, out_file):
     """ Logs results to result file.
     
     Args:
         prefix: start each line with this prefix
-        total_s: total seconds for entire batch
+        avg_s: average seconds per item
         result: result of processing batch
         out_file: write output to this file
     """
     nr_items = len(result)
-    avg_s = total_s/nr_items
-    print(f'Total time: {total_s}; ' \
-          f'Nr. items: {nr_items}; ' \
-          f'Avg. time: {avg_s}')
+    print(f'Avg. time: {avg_s}; Nr. items: {nr_items}')
     
     for pred, (d_sum, reward) in result.items():
         out_file.write(f'{prefix},{avg_s},{pred},{d_sum},{reward}\n')
@@ -58,18 +55,33 @@ if __name__ == '__main__':
                     connection, batch['general']['table'], 
                     batch['general']['dim_cols'], 'true')
 
-            start_s = time.time()
-            solution = cp.algs.batch.simple_batch(
-                connection, batch, all_preds)
-            result = cp.algs.batch.eval_solution(
-                connection, batch, all_preds, solution)
-            total_s = time.time() - start_s
-            log_results('simple', total_s, result, out_file)
-            
             # start_s = time.time()
-            # bp = cp.algs.batch.BatchProcessor(connection, batch, all_preds)
-            # solution = bp.summarize()
+            # solution = cp.algs.batch.simple_batch(
+                # connection, batch, all_preds)
             # result = cp.algs.batch.eval_solution(
                 # connection, batch, all_preds, solution)
             # total_s = time.time() - start_s
-            # log_results('clusters', total_s, result, out_file)
+            # log_results('simple', total_s, result, out_file)
+            
+            start_s = time.time()
+            
+            # select facts for item clusters
+            bp = cp.algs.batch.BatchProcessor(connection, batch, all_preds)
+            c_to_solution = bp.summarize()
+            nr_items = len(batch['predicates'])
+            
+            # generate summaries with selected facts
+            c_to_summaries = {}
+            for c_id, solution in c_to_solution.items():
+                c_batch = batch.copy()
+                c_batch['predicates'] = solution.keys()
+                result = cp.algs.batch.eval_solution(
+                    connection, c_batch, all_preds, solution)
+                c_to_summaries[c_id] = result
+            
+            # log results
+            total_s = time.time() - start_s
+            avg_time = total_s / nr_items
+            for c_id, result in c_to_summaries.items():
+                prefix = f'clusters,{c_id}'
+                log_results(prefix, avg_time, result, out_file)

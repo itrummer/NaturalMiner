@@ -55,13 +55,13 @@ def perf_breakdown(
                 
             ax.boxplot(x=plot_data, labels=approaches, showmeans=True)
             ax.yaxis.grid()
+            ax.set_yscale(y_mode)
     
-    plt.yscale(y_mode)
     plt.tight_layout(1.05)
     plt.savefig(out_path)
 
 
-def perf_plot(df, approaches, metric, y_bounds, y_label, out_path):
+def perf_plot(df, approaches, metric, y_bounds, y_label, y_mode, out_path):
     """ Draws aggregate data per approach and scenario.
     
     Args:
@@ -70,6 +70,7 @@ def perf_plot(df, approaches, metric, y_bounds, y_label, out_path):
         metric: draw this metric on the y axis
         y_bounds: tuple with lower and upper y bounds
         y_label: axis label for y axis
+        y_mode: type of y axis (linear vs. log)
         out_path: write output plot to this file
     """
     _, axes = plt.subplots(nrows=4, figsize=(3,4))
@@ -91,6 +92,7 @@ def perf_plot(df, approaches, metric, y_bounds, y_label, out_path):
         if y_bounds is not None:
             ax.set_ylim(y_bounds[0], y_bounds[1])
         ax.yaxis.grid()
+        ax.set_yscale(y_mode)
         ax.boxplot(x=plot_data, labels=approaches, showmeans=True)
     
     plt.tight_layout(1.02)
@@ -131,10 +133,14 @@ if __name__ == '__main__':
             file_path = path_prefix + f'{g_name}_time.pdf'
             perf_breakdown(
                 scenario_data, algs, 'time', 
-                None, 'Time (s)', 'linear', file_path)
+                None, 'Time (s)', 'log', file_path)
     
     for g_name, algs in alg_groups.items():
         file_path = f'plots/sx_{g_name}_time.pdf'
-        perf_plot(df, algs, 'time', None, 'Time (s)', file_path)
+        perf_plot(
+            df, algs, 'time', None, 
+            'Time (s)', 'log', file_path)
         file_path = f'plots/sx_{g_name}_quality.pdf'
-        perf_plot(df, algs, 'fquality', (-1.1,1.1), 'Quality', file_path)
+        perf_plot(
+            df, algs, 'fquality', (-1.1,1.1), 
+            'Quality', 'linear', file_path)

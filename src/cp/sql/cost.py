@@ -3,6 +3,20 @@ Created on Aug 8, 2021
 
 @author: immanueltrummer
 '''
+def cardinality(connection, table):
+    """ Returns cardinality estimate. 
+    
+    Args:
+        connection: connection to database
+        table: estimate rows in this table
+    
+    Returns:
+        cardinality estimate of given table
+    """
+    sql = f'select * from {table}'
+    cardinality, _ = estimates(connection, sql)
+    return cardinality
+
 def estimates(connection, sql):
     """ Generates cost and cardinality estimates.
     
