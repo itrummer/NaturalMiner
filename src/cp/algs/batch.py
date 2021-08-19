@@ -116,14 +116,79 @@ def simple_batch(connection, batch, all_preds):
     return {p:best_props for p in batch['predicates']}
 
 
-# def iterative_batch(connection, batch, all_preds):
-    #
-    # solution = cp.algs.batch.simple_batch(
-        # connection, batch, all_preds)
-    # result = cp.algs.batch.eval_solution(
-        # connection, batch, all_preds, solution)
-
+class IterativeClusters():
+    """ Iteratively divides items into clusters to generate summaries. """
     
+    def __init__(self, connection, batch, all_preds):
+        """ Initialize for given problem.
+        
+        Args:
+            connection: connection to database
+            batch: batch containing all items
+            all_preds: all predicates on dimensions
+        """
+        self.connection = connection
+        self.batches = [batch]
+        self.all_preds = all_preds
+        solution = simple_batch(connection, batch, all_preds)
+        s_eval = eval_solution(connection, batch, all_preds, solution)
+        self.solutions = {batch:solution}
+        self.s_evals = {batch:s_eval}
+
+    def _iterate(self):
+        """ Performs one iteration. """
+        to_split = self._select()
+        split = self._split(to_split)
+        self.batches.remove(to_split)
+        self.batches += split
+        for b in split:
+            solution = simple_batch(self.connection, b, self.all_preds)
+            s_eval = eval_solution(self.connection, b, self.all_preds, solution)
+            self.solutions[b] = solution
+            self.s_evals[b] = s_eval
+
+    def _priority(self, batch):
+        """ Evaluates priority for splitting given batch.
+        
+        Args:
+            batch: evaluate priority for this batch
+        
+        Returns:
+            splitting priority (high priority means likely split)
+        """
+        s_eval = self.s_evals[batch]
+        bad_items = [i for i, (_, q) in s_eval.items() if q < 0]
+        return len(bad_items)
+
+    def _select(self):
+        """ Select one of current batches to split. 
+        
+        Returns:
+            batch to split
+        """
+        return max(self.batches, key=lambda b:self._priority(b))
+
+    def _split(self, batch):
+        """ Splits items depending on how well solution works for them.
+        
+        Args:
+            batch: split items in this batch
+        
+        Returns:
+            list of two batches splitting the input batch
+        """
+        solution = self.solutions[batch]
+        cmp_preds_1 = [p for p, (_, qual) in solution.items() if qual >= 0]
+        cmp_preds_2 = [p for p, (_, qual) in solution.items() if qual < 0]
+        
+        batch_1 = batch.copy()
+        batch_1['cmp_preds'] = cmp_preds_1
+        batch_2 = batch.copy()
+        batch_2['cmp_preds'] = cmp_preds_2
+        
+        return [batch_1, batch_2]
+
+
 class ClusterEnv(gym.Env):
     """ Environment teaching agent how to cluster items for summarization. """
     
