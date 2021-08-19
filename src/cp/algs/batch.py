@@ -49,6 +49,7 @@ def eval_solution(connection, batch, all_preds, solution):
     for pred, sum_tmp in solution.items():
         sum_to_preds[sum_tmp] += [pred]
     
+    result = {}
     for sum_tmp, cmp_preds in sum_to_preds.items():
         
         cache = cp.cache.multi.MultiItemCache(
@@ -56,7 +57,6 @@ def eval_solution(connection, batch, all_preds, solution):
             all_preds, agg_cols, sum_tmp)
         s_eval = cp.text.sum.SumEvaluator()
         
-        result = {}
         for cmp_pred in cmp_preds:
             
             q_engine = cp.sql.query.QueryEngine(
@@ -87,7 +87,11 @@ def simple_batch(connection, batch, all_preds):
     """
     test_case = batch['general'].copy()
     all_cmp_preds = batch['predicates']
-    cmp_preds = random.choices(all_cmp_preds, k=3)
+    if not all_cmp_preds:
+        return {}
+
+    to_select = min(3, len(all_cmp_preds))
+    cmp_preds = random.choices(all_cmp_preds, k=to_select)
     test_case['cmp_preds'] = cmp_preds
 
     # src_table = batch['general']['table']
@@ -95,6 +99,7 @@ def simple_batch(connection, batch, all_preds):
     # sample_card = max(full_card * 0.01, 10000)
     # sample = f'(select * from {src_table} limit {sample_card}) as T'
     # test_case['table'] = sample
+
         
     env = cp.algs.rl.PickingEnv(
         connection, **test_case, all_preds=all_preds,
@@ -128,35 +133,47 @@ class IterativeClusters():
             all_preds: all predicates on dimensions
         """
         self.connection = connection
-        self.batches = [batch]
         self.all_preds = all_preds
         solution = simple_batch(connection, batch, all_preds)
         s_eval = eval_solution(connection, batch, all_preds, solution)
-        self.solutions = {batch:solution}
-        self.s_evals = {batch:s_eval}
+        self.id_to_be = {0:(batch, s_eval)}
 
     def _iterate(self):
         """ Performs one iteration. """
-        to_split = self._select()
+        logging.debug(f'Batches before iteration: {self.id_to_be}')
+        to_split_idx = self._select()
+        to_split = self.id_to_be[to_split_idx]
         split = self._split(to_split)
-        self.batches.remove(to_split)
-        self.batches += split
+        del self.id_to_be[to_split_idx]
+        
         for b in split:
             solution = simple_batch(self.connection, b, self.all_preds)
             s_eval = eval_solution(self.connection, b, self.all_preds, solution)
-            self.solutions[b] = solution
-            self.s_evals[b] = s_eval
+            b_id = self._next_ID()
+            self.id_to_be[b_id] = b, s_eval
+        
+        for b_id, (b, b_eval) in self.id_to_be.items():
+            logging.debug(f'Cluster {b_id}: {b}, {b_eval}')
 
-    def _priority(self, batch):
+    def _next_ID(self):
+        """ Returns next available batch ID.
+        
+        Returns:
+            integer representing next batch ID
+        """
+        ids = self.id_to_be.keys()
+        return 1+max(ids) if ids else 0
+
+    def _priority(self, b_e):
         """ Evaluates priority for splitting given batch.
         
         Args:
-            batch: evaluate priority for this batch
+            b_e: batch with associated evaluation
         
         Returns:
             splitting priority (high priority means likely split)
         """
-        s_eval = self.s_evals[batch]
+        _, s_eval = b_e
         bad_items = [i for i, (_, q) in s_eval.items() if q < 0]
         return len(bad_items)
 
@@ -164,27 +181,28 @@ class IterativeClusters():
         """ Select one of current batches to split. 
         
         Returns:
-            batch to split
+            index of batch to split
         """
-        return max(self.batches, key=lambda b:self._priority(b))
+        ids = self.id_to_be.keys()
+        return max(ids, key=lambda b_id:self._priority(self.id_to_be[b_id]))
 
-    def _split(self, batch):
+    def _split(self, b_e):
         """ Splits items depending on how well solution works for them.
         
         Args:
-            batch: split items in this batch
+            b_e: batch with associated evaluation
         
         Returns:
             list of two batches splitting the input batch
         """
-        solution = self.solutions[batch]
-        cmp_preds_1 = [p for p, (_, qual) in solution.items() if qual >= 0]
-        cmp_preds_2 = [p for p, (_, qual) in solution.items() if qual < 0]
+        batch, eval_s = b_e
+        cmp_preds_1 = [p for p, (_, qual) in eval_s.items() if qual >= 0]
+        cmp_preds_2 = [p for p, (_, qual) in eval_s.items() if qual < 0]
         
         batch_1 = batch.copy()
-        batch_1['cmp_preds'] = cmp_preds_1
+        batch_1['predicates'] = cmp_preds_1
         batch_2 = batch.copy()
-        batch_2['cmp_preds'] = cmp_preds_2
+        batch_2['predicates'] = cmp_preds_2
         
         return [batch_1, batch_2]
 

@@ -66,16 +66,16 @@ if __name__ == '__main__':
             
             start_s = time.time()
             ic = IterativeClusters(connection, batch, all_preds)
-            for _ in range(3):
+            for i in range(3):
+                logging.info(f'Starting batch iteration {i}')
                 ic._iterate()
             total_s = time.time() - start_s
-            nr_items = len(batch['cmp_preds'])
+            nr_items = len(batch['predicates'])
             avg_s = total_s / nr_items
             
-            for c_id, b in enumerate(ic.batches):
-                s_eval = ic.s_evals[b]
+            for c_id, (b, b_eval) in ic.id_to_be.items():
                 prefix = f'simclus,{c_id}'
-                log_results(prefix, total_s, s_eval, out_file)
+                log_results(prefix, total_s, b_eval, out_file)
             
             # select facts for item clusters
             # start_s = time.time()
