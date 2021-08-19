@@ -17,6 +17,7 @@ import random
 from sklearn.cluster import KMeans
 from stable_baselines3 import A2C, PPO
 import statistics
+from cp.sql.pred import pred_sql
 
 def eval_solution(connection, batch, all_preds, solution):
     """ Evaluates solution to batch summarization problem.
@@ -267,7 +268,12 @@ class BatchProcessor():
         return result
     
     def _get_features(self):
-        """ Collect raw features used to cluster items. 
+        """ Collect raw features used to cluster items.
+        
+        Careful: this implementation assumes that comparison
+        predicates are unary equality predicates on the same
+        column (therefore, all features can be retrieved by
+        a single group-by query).
         
         Returns:
             Nr. features, dictionary mapping items to feature vectors
@@ -275,6 +281,7 @@ class BatchProcessor():
         results = {}
         agg_cols = self.batch['general']['agg_cols']
         dim_cols = self.batch['general']['dim_cols']
+        cmp_col = self.batch['cmp_col']
         
         with self.connection.cursor() as cursor:
             
@@ -292,15 +299,17 @@ class BatchProcessor():
                     # agg_features.append(agg_feature)
             
             nr_features = len(agg_features)
-            
-            for cmp_pred in self.cmp_preds:
-                sql = 'select ' + ', '.join(agg_features) + \
-                    f' from {self.table} where {cmp_pred}'
-                logging.debug(f'Feature query: {sql}')
-                cursor.execute(sql)
-                row = cursor.fetchone()
+            sql = 'select ' + ', '.join(agg_features) + \
+                f', {cmp_col} as cmp_val ' + \
+                f'from {self.table} group by {cmp_col}'
+            logging.debug(f'Feature query: {sql}')
+            cursor.execute(sql)
+            rows = cursor.fetchall()
+            for row in rows:
                 result = [row[a] for a in agg_cols]
                 result = [float(r) if r is not None else 0 for r in result]
+                cmp_val = row['cmp_val']
+                cmp_pred = pred_sql(cmp_col, cmp_val)
                 results[cmp_pred] = result
         
         logging.debug(results)
