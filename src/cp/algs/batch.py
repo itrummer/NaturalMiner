@@ -279,24 +279,23 @@ class BatchProcessor():
         with self.connection.cursor() as cursor:
             
             agg_features = [f'avg({a}) as {a}' for a in agg_cols]
-            for agg_col in agg_cols:
-                for dim_col in dim_cols:
-                    sql = f'select {dim_col} as val from {self.table} limit 1'
-                    cursor.execute(sql)
-                    row = cursor.fetchone()
-                    val = row['val']
-                    e_val = cp.sql.pred.sql_esc(val)
-                    agg_feature = \
-                        f"(select sum(case when {dim_col} = '{e_val}' " \
-                        f"then {agg_col} else 0 end))/(select count({agg_col}))"
-                    agg_features.append(agg_feature)
+            # for agg_col in agg_cols:
+                # for dim_col in dim_cols:
+                    # sql = f'select {dim_col} as val from {self.table} limit 1'
+                    # cursor.execute(sql)
+                    # row = cursor.fetchone()
+                    # val = row['val']
+                    # e_val = cp.sql.pred.sql_esc(val)
+                    # agg_feature = \
+                        # f"(select sum(case when {dim_col} = '{e_val}' " \
+                        # f"then {agg_col} else 0 end))/(select count({agg_col}))"
+                    # agg_features.append(agg_feature)
             
             nr_features = len(agg_features)
             
             for cmp_pred in self.cmp_preds:
                 sql = 'select ' + ', '.join(agg_features) + \
-                    ' from (select * from ' + self.table + \
-                    ' limit 10000) as T where ' + cmp_pred
+                    f' from {self.table} where {cmp_pred}'
                 logging.debug(f'Feature query: {sql}')
                 cursor.execute(sql)
                 row = cursor.fetchone()
