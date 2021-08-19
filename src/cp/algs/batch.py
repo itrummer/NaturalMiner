@@ -6,6 +6,7 @@ Created on Aug 15, 2021
 import collections
 import cp.algs.rl
 import cp.cache.static
+import cp.cache.multi
 import cp.sql.query
 import cp.text.fact
 import gym
@@ -16,6 +17,14 @@ import random
 from sklearn.cluster import KMeans
 from stable_baselines3 import A2C, PPO
 import statistics
+
+def batch_text():
+    """ Generate text for a batch of items, using same summary template. 
+    
+    Args:
+        
+    """
+    pass
 
 def eval_solution(connection, batch, all_preds, solution):
     """ Evaluates solution to batch summarization problem.
@@ -35,8 +44,9 @@ def eval_solution(connection, batch, all_preds, solution):
     dims_tmp = batch['general']['dims_tmp']
     agg_cols = batch['general']['agg_cols']
     aggs_txt = batch['general']['aggs_txt']
+    cmp_col = batch['general']['cmp_col']
     
-    cache = cp.cache.static.EmptyCache()
+    cache = cp.cache.multi.MultiItemCache(connection, table, cmp_col, all_preds, agg_cols, sum_tmp)
     s_eval = cp.text.sum.SumEvaluator()
     
     result = {}
