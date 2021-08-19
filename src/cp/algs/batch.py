@@ -87,16 +87,15 @@ def simple_batch(connection, batch, all_preds):
     """
     test_case = batch['general'].copy()
     all_cmp_preds = batch['predicates']
-    src_table = batch['general']['table']
-
-    full_card = cp.sql.cost.cardinality(connection, src_table)
-    sample_card = max(full_card * 0.01, 10000)
-    sample = f'(select * from {src_table} limit {sample_card}) as T'
-    test_case['table'] = sample
-        
     cmp_preds = random.choices(all_cmp_preds, k=3)
     test_case['cmp_preds'] = cmp_preds
 
+    # src_table = batch['general']['table']
+    # full_card = cp.sql.cost.cardinality(connection, src_table)
+    # sample_card = max(full_card * 0.01, 10000)
+    # sample = f'(select * from {src_table} limit {sample_card}) as T'
+    # test_case['table'] = sample
+        
     env = cp.algs.rl.PickingEnv(
         connection, **test_case, all_preds=all_preds,
         c_type='empty', cluster=True)
@@ -117,6 +116,14 @@ def simple_batch(connection, batch, all_preds):
     return {p:best_props for p in batch['predicates']}
 
 
+# def iterative_batch(connection, batch, all_preds):
+    #
+    # solution = cp.algs.batch.simple_batch(
+        # connection, batch, all_preds)
+    # result = cp.algs.batch.eval_solution(
+        # connection, batch, all_preds, solution)
+
+    
 class ClusterEnv(gym.Env):
     """ Environment teaching agent how to cluster items for summarization. """
     
