@@ -5,8 +5,8 @@ Created on Aug 15, 2021
 '''
 import collections
 import cp.algs.rl
-import cp.cache.static
 import cp.cache.multi
+import cp.sql.pred
 import cp.sql.query
 import cp.text.fact
 import gym
@@ -18,16 +18,13 @@ from sklearn.cluster import KMeans
 from stable_baselines3 import A2C, PPO
 import statistics
 
-def batch_text():
-    """ Generate text for a batch of items, using same summary template. 
-    
-    Args:
-        
-    """
-    pass
-
 def eval_solution(connection, batch, all_preds, solution):
     """ Evaluates solution to batch summarization problem.
+    
+    Careful: this function assumes that comparison predicates
+    are unary equality predicates on the comparison column.
+    If this is not the case, it adds unnecessary overheads
+    (the result is still correct). Might refine later.
     
     Args:
         connection: connection to database
@@ -44,26 +41,35 @@ def eval_solution(connection, batch, all_preds, solution):
     dims_tmp = batch['general']['dims_tmp']
     agg_cols = batch['general']['agg_cols']
     aggs_txt = batch['general']['aggs_txt']
-    cmp_col = batch['general']['cmp_col']
+    cmp_col = batch['cmp_col']
     
-    cache = cp.cache.multi.MultiItemCache(connection, table, cmp_col, all_preds, agg_cols, sum_tmp)
-    s_eval = cp.text.sum.SumEvaluator()
+    # collect items with same summary template
+    sum_to_preds = collections.defaultdict(lambda:[])
+    for pred, sum_tmp in solution.items():
+        sum_to_preds[sum_tmp] += [pred]
     
-    result = {}
-    for cmp_pred in batch['predicates']:
+    for sum_tmp, cmp_preds in sum_to_preds.items():
         
-        q_engine = cp.sql.query.QueryEngine(
-            connection, table, cmp_pred, cache)
-        s_gen = cp.text.sum.SumGenerator(
-            all_preds, preamble, dim_cols,
-            dims_tmp, agg_cols, aggs_txt,
-            q_engine)
+        cache = cp.cache.multi.MultiItemCache(
+            connection, table, cmp_col, 
+            all_preds, agg_cols, sum_tmp)
+        s_eval = cp.text.sum.SumEvaluator()
         
-        sum_tmp = solution[cmp_pred]
-        sum_facts = [cp.text.fact.Fact.from_props(p) for p in sum_tmp]
-        d_sum, _ = s_gen.generate(sum_facts)
-        quality = s_eval.evaluate(d_sum)
-        result[cmp_pred] = (d_sum, quality)
+        result = {}
+        for cmp_pred in cmp_preds:
+            
+            q_engine = cp.sql.query.QueryEngine(
+                connection, table, cmp_pred, cache)
+            s_gen = cp.text.sum.SumGenerator(
+                all_preds, preamble, dim_cols,
+                dims_tmp, agg_cols, aggs_txt,
+                q_engine)
+            
+            sum_tmp = solution[cmp_pred]
+            sum_facts = [cp.text.fact.Fact.from_props(p) for p in sum_tmp]
+            d_sum, _ = s_gen.generate(sum_facts)
+            quality = s_eval.evaluate(d_sum)
+            result[cmp_pred] = (d_sum, quality)
     
     return result
 
@@ -246,7 +252,7 @@ class BatchProcessor():
         model = A2C(
             'MlpPolicy', self.cluster_env, verbose=True, 
             gamma=1.0, normalize_advantage=True)
-        model.learn(total_timesteps=20)
+        model.learn(total_timesteps=10)
         clusters = self.cluster_env.best_clusters
         logging.info(f'Clusters: {clusters}')
         
@@ -279,7 +285,9 @@ class BatchProcessor():
                     cursor.execute(sql)
                     row = cursor.fetchone()
                     val = row['val']
-                    agg_feature = f"(select sum(case when {dim_col} = '{val}' " \
+                    e_val = cp.sql.pred.sql_esc(val)
+                    agg_feature = \
+                        f"(select sum(case when {dim_col} = '{e_val}' " \
                         f"then {agg_col} else 0 end))/(select count({agg_col}))"
                     agg_features.append(agg_feature)
             

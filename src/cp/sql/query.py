@@ -33,7 +33,9 @@ class AggQuery():
         Returns:
             aggregation query
         """
-        eq_preds = frozenset([all_preds[p] for p in fact.get_preds()])
+        eq_preds = [all_preds[p] for p in fact.get_preds()]
+        eq_preds = list(filter(lambda p:is_pred(p), eq_preds))
+        eq_preds = frozenset(eq_preds)
         agg_idx = fact.get_agg()
         agg_col = agg_cols[agg_idx]
         return AggQuery(table, eq_preds, cmp_pred, agg_col)

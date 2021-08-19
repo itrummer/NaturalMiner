@@ -27,14 +27,16 @@ class MultiItemCache(AggCache):
         self.q_to_r = {}
         with connection.cursor() as cursor:
             for props in sum_tmp:
-                q_parts = [f'select {cmp_col}']
+                q_parts = [f'select {cmp_col} as cmp_col,']
                 fact = Fact.from_props(props)
                 agg_idx = fact.get_agg()
                 agg = agg_cols[agg_idx]
-                q_parts.append(f'avg({agg})/(select avg({agg}) from {table})')
+                q_parts.append(
+                    f'avg({agg})/(select avg({agg}) ' + \
+                    f'from {table}) as rel_avg')
                 
-                q_parts.append('where')
-                w_parts = []
+                q_parts.append(f'from {table} where')
+                w_parts = ['true']
                 for p_idx in fact.get_preds():
                     pred = all_preds[p_idx]
                     if is_pred(pred):
@@ -45,17 +47,31 @@ class MultiItemCache(AggCache):
                 q_parts.append(w_clause)
                 q_parts.append(f'group by {cmp_col}')
                 sql = ' '.join(q_parts)
-                
+
+                logging.debug(f'Multi-cache SQL: {sql}')
                 cursor.execute(sql)
                 rows = cursor.fetchall()
                 for row in rows:
-                    cmp_val = row[0]
-                    rel_avg = row[1]
-                    cmp_pred = (cmp_col, cmp_val)
+                    cmp_val = row['cmp_col']
+                    rel_avg = row['rel_avg']
+                    cmp_pred = pred_sql(cmp_col, cmp_val)
                     agg_q = AggQuery.from_fact(
                         table, all_preds, cmp_pred, 
                         agg_cols, fact)
                     self.q_to_r[agg_q] = rel_avg
+                
+                # Determine items with empty data sets
+                sql = f'select distinct {cmp_col} as cmp_col from {table}'
+                cursor.execute(sql)
+                rows = cursor.fetchall()
+                for row in rows:
+                    cmp_val = row['cmp_col']
+                    cmp_pred = pred_sql(cmp_col, cmp_val)
+                    agg_q = AggQuery.from_fact(
+                        table, all_preds, cmp_pred, 
+                        agg_cols, fact)
+                    if agg_q not in self.q_to_r:
+                        self.q_to_r[agg_q] = None
             
         logging.debug(f'Multi-item cache content: {self.q_to_r}')
     

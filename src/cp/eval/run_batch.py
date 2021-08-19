@@ -78,7 +78,7 @@ if __name__ == '__main__':
                 result = cp.algs.batch.eval_solution(
                     connection, c_batch, all_preds, solution)
                 c_to_summaries[c_id] = result
-            
+                
             # log results
             total_s = time.time() - start_s
             avg_time = total_s / nr_items
