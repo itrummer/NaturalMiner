@@ -66,7 +66,7 @@ if __name__ == '__main__':
             
             start_s = time.time()
             ic = IterativeClusters(connection, batch, all_preds)
-            for i in range(3):
+            for i in range(5):
                 logging.info(f'Starting batch iteration {i}')
                 ic.iterate()
             total_s = time.time() - start_s
