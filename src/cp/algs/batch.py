@@ -187,8 +187,8 @@ class IterativeClusters():
         ids = self.id_to_be.keys()
         return 1+max(ids) if ids else 0
 
-    def _priority(self, b_e):
-        """ Evaluates priority for splitting given batch.
+    def _priority_avg(self, b_e):
+        """ Evaluates priority for splitting batch using average quality.
         
         Args:
             b_e: batch with associated evaluation
@@ -199,7 +199,20 @@ class IterativeClusters():
         _, s_eval = b_e
         # bad_items = [i for i, (_, q) in s_eval.items() if q < 0]
         # return len(bad_items)
-        return 1 - statistics.mean([v[1] for v in s_eval.values()])
+        return - statistics.mean([v[1] for v in s_eval.values()])
+    
+    def _priority_count(self, b_e):
+        """ Evaluates priority for splitting batch using count of bad items.
+        
+        Args:
+            b_e: batch with associated evaluation
+        
+        Returns:
+            splitting priority (high priority means likely split)
+        """
+        _, s_eval = b_e
+        bad_items = [i for i, (_, q) in s_eval.items() if q < 0]
+        return len(bad_items)
 
     def _select(self):
         """ Select one of current batches to split. 
@@ -208,7 +221,9 @@ class IterativeClusters():
             index of batch to split
         """
         ids = self.id_to_be.keys()
-        return max(ids, key=lambda b_id:self._priority(self.id_to_be[b_id]))
+        return max(ids, key=lambda b_id:
+                   self._priority_count(
+                       self.id_to_be[b_id]))
     
     def _signum_split(self, b_e):
         """ Splits items based on the signum of text quality.
