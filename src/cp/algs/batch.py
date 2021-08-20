@@ -138,12 +138,12 @@ class IterativeClusters():
         s_eval = eval_solution(connection, batch, all_preds, solution)
         self.id_to_be = {0:(batch, s_eval)}
 
-    def _iterate(self):
+    def iterate(self):
         """ Performs one iteration. """
         logging.debug(f'Batches before iteration: {self.id_to_be}')
         to_split_idx = self._select()
         to_split = self.id_to_be[to_split_idx]
-        split = self._split(to_split)
+        split = self._signum_split(to_split)
         del self.id_to_be[to_split_idx]
         
         for b in split:
@@ -154,6 +154,29 @@ class IterativeClusters():
         
         for b_id, (b, b_eval) in self.id_to_be.items():
             logging.debug(f'Cluster {b_id}: {b}, {b_eval}')
+
+    def _even_split(self, b_e):
+        """ Splits items, sorted by text quality, evenly into two halves.
+        
+        Args:
+            b_e: batch with associated evaluation
+        
+        Returns:
+            list of two batches splitting the input batch
+        """
+        batch, eval_s = b_e
+        nr_preds = len(eval_s)
+        preds_by_qual = sorted(eval_s.keys(), key=lambda p:eval_s[p][1])
+                
+        split_batches = []
+        middle = round(nr_preds/2)
+        for s in [slice(0, middle), slice(middle, nr_preds)]:
+            cmp_preds = preds_by_qual[s]
+            split_batch = batch.copy()
+            split_batch['predicates'] = cmp_preds
+            split_batches.append(split_batch)
+        
+        return split_batches
 
     def _next_ID(self):
         """ Returns next available batch ID.
@@ -186,9 +209,9 @@ class IterativeClusters():
         """
         ids = self.id_to_be.keys()
         return max(ids, key=lambda b_id:self._priority(self.id_to_be[b_id]))
-
-    def _split(self, b_e):
-        """ Splits items depending on how well solution works for them.
+    
+    def _signum_split(self, b_e):
+        """ Splits items based on the signum of text quality.
         
         Args:
             b_e: batch with associated evaluation
@@ -197,15 +220,13 @@ class IterativeClusters():
             list of two batches splitting the input batch
         """
         batch, eval_s = b_e
-        nr_preds = len(eval_s)
-        preds_by_qual = sorted(eval_s.keys(), key=lambda p:eval_s[p][1])
-                
+        preds_1 = [p for p, (_, q) in eval_s.items() if q < 0]
+        preds_2 = [p for p, (_, q) in eval_s.items() if q >= 0]
+        
         split_batches = []
-        middle = round(nr_preds/2)
-        for s in [slice(0, middle), slice(middle, nr_preds)]:
-            cmp_preds = preds_by_qual[s]
+        for preds in [preds_1, preds_2]:
             split_batch = batch.copy()
-            split_batch['predicates'] = cmp_preds
+            split_batch['predicates'] = preds
             split_batches.append(split_batch)
         
         return split_batches

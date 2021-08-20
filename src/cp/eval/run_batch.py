@@ -68,7 +68,7 @@ if __name__ == '__main__':
             ic = IterativeClusters(connection, batch, all_preds)
             for i in range(3):
                 logging.info(f'Starting batch iteration {i}')
-                ic._iterate()
+                ic.iterate()
             total_s = time.time() - start_s
             nr_items = len(batch['predicates'])
             avg_s = total_s / nr_items
