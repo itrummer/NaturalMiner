@@ -201,7 +201,7 @@ class IterativeClusters():
         preds_by_qual = sorted(eval_s.keys(), key=lambda p:eval_s[p][1])
                 
         split_batches = []
-        middle = nr_preds/2
+        middle = round(nr_preds/2)
         for s in [slice(0, middle), slice(middle, nr_preds)]:
             cmp_preds = preds_by_qual[s]
             split_batch = batch.copy()
