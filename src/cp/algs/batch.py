@@ -174,8 +174,9 @@ class IterativeClusters():
             splitting priority (high priority means likely split)
         """
         _, s_eval = b_e
-        bad_items = [i for i, (_, q) in s_eval.items() if q < 0]
-        return len(bad_items)
+        # bad_items = [i for i, (_, q) in s_eval.items() if q < 0]
+        # return len(bad_items)
+        return 1 - statistics.mean([v[1] for v in s_eval.values()])
 
     def _select(self):
         """ Select one of current batches to split. 
@@ -196,15 +197,18 @@ class IterativeClusters():
             list of two batches splitting the input batch
         """
         batch, eval_s = b_e
-        cmp_preds_1 = [p for p, (_, qual) in eval_s.items() if qual >= 0]
-        cmp_preds_2 = [p for p, (_, qual) in eval_s.items() if qual < 0]
+        nr_preds = len(eval_s)
+        preds_by_qual = sorted(eval_s.keys(), key=lambda p:eval_s[p][1])
+                
+        split_batches = []
+        middle = nr_preds/2
+        for s in [slice(0, middle), slice(middle, nr_preds)]:
+            cmp_preds = preds_by_qual[s]
+            split_batch = batch.copy()
+            split_batch['predicates'] = cmp_preds
+            split_batches.append(split_batch)
         
-        batch_1 = batch.copy()
-        batch_1['predicates'] = cmp_preds_1
-        batch_2 = batch.copy()
-        batch_2['predicates'] = cmp_preds_2
-        
-        return [batch_1, batch_2]
+        return split_batches
 
 
 class ClusterEnv(gym.Env):
