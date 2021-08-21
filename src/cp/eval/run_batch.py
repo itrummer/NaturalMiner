@@ -30,7 +30,7 @@ def log_ic_results(nr_facts, nr_preds, method, avg_s, ic, out_file):
         for pred, (d_sum, reward) in b_eval.items():
             out_file.write(
                 f'{nr_facts},{nr_preds},{method},{c_id},' +\
-                f'{avg_s},{pred},"{d_sum}",{reward}\n')
+                f'{avg_s},"{pred}","{d_sum}",{reward}\n')
 
 if __name__ == '__main__':
 

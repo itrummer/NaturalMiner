@@ -1,12 +1,10 @@
 '''
-Created on Aug 13, 2021
+Created on Aug 21, 2021
 
 @author: immanueltrummer
 '''
-import argparse
 import matplotlib
 import matplotlib.pyplot as plt
-import pandas as pd
 
 def perf_breakdown(
         df, approaches, metric, y_bounds, 
@@ -99,48 +97,20 @@ def perf_plot(df, approaches, metric, y_bounds, y_label, y_mode, out_path):
     plt.subplots_adjust(hspace=0.7)
     plt.savefig(out_path)
 
-
-if __name__ == '__main__':
-
-    parser = argparse.ArgumentParser(description='Analyze CP benchmark.')
-    parser.add_argument('results_path', type=str, help='tsv file with results')
-    args = parser.parse_args()
+def preprocess(df):
+    """ Pre-process data frame containing CP results. 
     
-    df = pd.read_csv(args.results_path, sep='\t')
+    Args:
+        df: data frame with CP results
+    
+    Returns:
+        results with normalized approach and quality values
+    """
     methods_short = {
         'rand1':'r', 'rand':'R', 'gen':'G', 'rlempty':'B',
         'sampleempty':'SB', 'sampleproactive':'SP', 
-        'rlcube':'C', 'rlproactive':'P', 'rlNCproactive':'PN'}
+        'rlcube':'C', 'rlproactive':'P', 'rlNCproactive':'PN',
+        'sample':'SP', 'simple':'B', 'cluster':'CB'}
     df['approach'] = df['approach'].apply(lambda a:methods_short[a])
     df['fquality'] = df['bquality'].apply(lambda q:max(q,-1))
-    print(df.info())
-
-    plt.rcParams.update({'text.usetex': True, 'font.size':9})
-    plt.close('all')
-    
-    alg_groups = {'gen': ['r', 'R', 'G', 'P'], 'rl': ['B', 'P', 'SB', 'SP']}
-    
-    for scenario in range(4):
-        scenario_data = df.query(f'scenario == {scenario}')
-        path_prefix = f'plots/S{scenario}_'
-        
-        for g_name, algs in alg_groups.items():
-            file_path = path_prefix + f'{g_name}_qual.pdf'
-            perf_breakdown(
-                scenario_data, algs, 'fquality', 
-                (-1.1, 1.1), 'Quality', 'linear', file_path)
-            
-            file_path = path_prefix + f'{g_name}_time.pdf'
-            perf_breakdown(
-                scenario_data, algs, 'time', 
-                None, 'Time (s)', 'log', file_path)
-    
-    for g_name, algs in alg_groups.items():
-        file_path = f'plots/sx_{g_name}_time.pdf'
-        perf_plot(
-            df, algs, 'time', None, 
-            'Time (s)', 'log', file_path)
-        file_path = f'plots/sx_{g_name}_quality.pdf'
-        perf_plot(
-            df, algs, 'fquality', (-1.1,1.1), 
-            'Quality', 'linear', file_path)
+    return df
