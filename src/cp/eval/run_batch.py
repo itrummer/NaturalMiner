@@ -82,7 +82,7 @@ if __name__ == '__main__':
                             out_file.write(
                                 f'{nr_facts},{nr_preds},sample,0,{total_s},' +\
                                 f'{cmp_pred},"{text}",{reward}\n')
-                            if time.time() - batch_start_s > 30:
+                            if time.time() - batch_start_s > 900:
                                 break
         
                         nr_items = len(batch['predicates'])
