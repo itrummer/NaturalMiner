@@ -5,6 +5,7 @@ Created on Aug 15, 2021
 '''
 import argparse
 import cp.algs.batch
+import cp.algs.sample
 import cp.sql.pred
 import json
 import logging
@@ -14,21 +15,22 @@ import time
 from cp.algs.batch import IterativeClusters
 
 
-def log_results(prefix, avg_s, result, out_file):
+def log_ic_results(nr_facts, nr_preds, method, avg_s, ic, out_file):
     """ Logs results to result file.
     
     Args:
-        prefix: start each line with this prefix
+        nr_facts: number of facts per summary
+        nr_preds: number of predicates per fact
+        method: string ID of method used
         avg_s: average seconds per item
-        result: result of processing batch
+        ic: iterative cluster processor
         out_file: write output to this file
     """
-    nr_items = len(result)
-    print(f'Avg. time: {avg_s}; Nr. items: {nr_items}')
-    
-    for pred, (d_sum, reward) in result.items():
-        out_file.write(f'{prefix},{avg_s},{pred},"{d_sum}",{reward}\n')
-
+    for c_id, (_, b_eval) in ic.id_to_be.items():
+        for pred, (d_sum, reward) in b_eval.items():
+            out_file.write(
+                f'{nr_facts},{nr_preds},{method},{c_id},' +\
+                f'{avg_s},{pred},"{d_sum}",{reward}\n')
 
 if __name__ == '__main__':
 
@@ -36,7 +38,7 @@ if __name__ == '__main__':
     parser.add_argument('in_path', type=str, help='Path to JSON input')
     parser.add_argument('db', type=str, help='Name of the database')
     parser.add_argument('user', type=str, help='Name of database user')
-    parser.add_argument('out_path', type=str, help='Path to output file')
+    parser.add_argument('out_path', type=str, help='Path to output files')
     parser.add_argument('log_level', type=str, help='Specify log level')
     args = parser.parse_args()
     
@@ -52,49 +54,51 @@ if __name__ == '__main__':
                 database=args.db, user=args.user, 
                 cursor_factory=RealDictCursor) as connection:
                 connection.autocommit = True
+
                 all_preds = cp.sql.pred.all_preds(
                     connection, batch['general']['table'], 
-                    batch['general']['dim_cols'], 'true')
+                    batch['general']['dim_cols'], 'true')                
+                out_file.write(
+                    'nrfacts,nrpreds,approach,cluster,' +\
+                    'itemtime,pred,text,reward\n')
 
-            # start_s = time.time()
-            # solution = cp.algs.batch.simple_batch(
-                # connection, batch, all_preds)
-            # result = cp.algs.batch.eval_solution(
-                # connection, batch, all_preds, solution)
-            # total_s = time.time() - start_s
-            # log_results('simple', total_s, result, out_file)
-            
-            start_s = time.time()
-            ic = IterativeClusters(connection, batch, all_preds)
-            for i in range(5):
-                logging.info(f'Starting batch iteration {i}')
-                ic.iterate()
-            total_s = time.time() - start_s
-            nr_items = len(batch['predicates'])
-            avg_s = total_s / nr_items
-            
-            for c_id, (b, b_eval) in ic.id_to_be.items():
-                prefix = f'simclus,{c_id}'
-                log_results(prefix, total_s, b_eval, out_file)
-            
-            # select facts for item clusters
-            # start_s = time.time()
-            # bp = cp.algs.batch.BatchProcessor(connection, batch, all_preds)
-            # c_to_solution = bp.summarize()
-            # nr_items = len(batch['predicates'])
-            #
-            # # generate summaries with selected facts
-            # c_to_summaries = {}
-            # for c_id, solution in c_to_solution.items():
-                # c_batch = batch.copy()
-                # c_batch['predicates'] = solution.keys()
-                # result = cp.algs.batch.eval_solution(
-                    # connection, c_batch, all_preds, solution)
-                # c_to_summaries[c_id] = result
-                #
-            # # log results
-            # total_s = time.time() - start_s
-            # avg_time = total_s / nr_items
-            # for c_id, result in c_to_summaries.items():
-                # prefix = f'clusters,{c_id}'
-                # log_results(prefix, avg_time, result, out_file)
+                for nr_facts in [1, 2, 3]:
+                    for nr_preds in [1, 2, 3]:
+                        
+                        batch_start_s = time.time()
+                        for cmp_pred in batch['predicates']:
+                            test_case = batch['general'].copy()
+                            test_case['cmp_pred'] = cmp_pred
+                            start_s = time.time()
+                            sampler = cp.algs.sample.Sampler(
+                                connection, test_case, all_preds, 
+                                0.01, 5, 'proactive')
+                            total_s = time.time() - start_s
+                            text_to_reward, _ = sampler.run_sampling()
+                            text = max(
+                                text_to_reward.keys(), 
+                                key=lambda k:text_to_reward[k])
+                            reward = text_to_reward[text]
+                            out_file.write(
+                                f'{nr_facts},{nr_preds},sample,0,{total_s},' +\
+                                f'{cmp_pred},"{text}",{reward}\n')
+                            if time.time() - batch_start_s > 30:
+                                break
+        
+                        nr_items = len(batch['predicates'])
+                        start_s = time.time()
+                        ic = IterativeClusters(connection, batch, all_preds)
+                        total_s = time.time() - start_s
+                        avg_s = total_s / nr_items
+                        log_ic_results(
+                            nr_facts, nr_preds, 
+                            'simple', avg_s, ic, out_file)
+                        
+                        for i in range(5):
+                            logging.info(f'Starting batch iteration {i}')
+                            ic.iterate()
+                        total_s = time.time() - start_s
+                        avg_s = total_s / nr_items
+                        log_ic_results(
+                            nr_facts, nr_preds, 
+                            'cluster', avg_s, ic, out_file)
