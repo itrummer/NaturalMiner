@@ -70,14 +70,14 @@ if __name__ == '__main__':
                     for cmp_pred in batch['predicates']:
                         test_case = batch['general'].copy()
                         test_case['cmp_pred'] = cmp_pred
-                        start_s = time.time()
                         
+                        start_s = time.time()
                         sampler = cp.algs.sample.Sampler(
                             connection, test_case, all_preds, 
                             0.01, 5, 'proactive')
                         text_to_reward, _ = sampler.run_sampling()
-                        
                         total_s = time.time() - start_s
+                        
                         reward = max(text_to_reward.values())
                         text = max(text_to_reward.keys(), 
                             key=lambda k:text_to_reward[k])
