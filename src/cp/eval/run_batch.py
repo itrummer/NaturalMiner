@@ -62,43 +62,46 @@ if __name__ == '__main__':
                     'nrfacts,nrpreds,approach,cluster,' +\
                     'itemtime,pred,text,reward\n')
 
-                for nr_facts in [1, 2, 3]:
-                    for nr_preds in [1, 2, 3]:
-                        
-                        batch_start_s = time.time()
-                        for cmp_pred in batch['predicates']:
-                            test_case = batch['general'].copy()
-                            test_case['cmp_pred'] = cmp_pred
-                            start_s = time.time()
-                            sampler = cp.algs.sample.Sampler(
-                                connection, test_case, all_preds, 
-                                0.01, 5, 'proactive')
-                            total_s = time.time() - start_s
-                            text_to_reward, _ = sampler.run_sampling()
-                            text = max(
-                                text_to_reward.keys(), 
-                                key=lambda k:text_to_reward[k])
-                            reward = text_to_reward[text]
-                            out_file.write(
-                                f'{nr_facts},{nr_preds},sample,0,{total_s},' +\
-                                f'{cmp_pred},"{text}",{reward}\n')
-                            if time.time() - batch_start_s > 900:
-                                break
-        
-                        nr_items = len(batch['predicates'])
+                for nr_facts, nr_preds in [(1, 1), (2, 2), (3, 3)]:
+                    batch['general']['nr_facts'] = nr_facts
+                    batch['general']['nr_preds'] = nr_preds
+                    
+                    batch_start_s = time.time()
+                    for cmp_pred in batch['predicates']:
+                        test_case = batch['general'].copy()
+                        test_case['cmp_pred'] = cmp_pred
                         start_s = time.time()
-                        ic = IterativeClusters(connection, batch, all_preds)
-                        total_s = time.time() - start_s
-                        avg_s = total_s / nr_items
-                        log_ic_results(
-                            nr_facts, nr_preds, 
-                            'simple', avg_s, ic, out_file)
                         
-                        for i in range(5):
-                            logging.info(f'Starting batch iteration {i}')
-                            ic.iterate()
+                        sampler = cp.algs.sample.Sampler(
+                            connection, test_case, all_preds, 
+                            0.01, 5, 'proactive')
+                        text_to_reward, _ = sampler.run_sampling()
+                        
                         total_s = time.time() - start_s
-                        avg_s = total_s / nr_items
-                        log_ic_results(
-                            nr_facts, nr_preds, 
-                            'cluster', avg_s, ic, out_file)
+                        reward = max(text_to_reward.values())
+                        text = max(text_to_reward.keys(), 
+                            key=lambda k:text_to_reward[k])
+                        out_file.write(
+                            f'{nr_facts},{nr_preds},sample,0,{total_s},' +\
+                            f'{cmp_pred},"{text}",{reward}\n')
+
+                        if time.time() - batch_start_s > 14400:
+                            break
+    
+                    nr_items = len(batch['predicates'])
+                    start_s = time.time()
+                    ic = IterativeClusters(connection, batch, all_preds)
+                    total_s = time.time() - start_s
+                    avg_s = total_s / nr_items
+                    log_ic_results(
+                        nr_facts, nr_preds, 
+                        'simple', avg_s, ic, out_file)
+                    
+                    for i in range(3):
+                        logging.info(f'Starting batch iteration {i}')
+                        ic.iterate()
+                    total_s = time.time() - start_s
+                    avg_s = total_s / nr_items
+                    log_ic_results(
+                        nr_facts, nr_preds, 
+                        'cluster', avg_s, ic, out_file)

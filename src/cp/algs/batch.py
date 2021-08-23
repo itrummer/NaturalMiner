@@ -6,7 +6,6 @@ Created on Aug 15, 2021
 import collections
 import cp.algs.rl
 import cp.cache.multi
-import cp.sql.pred
 import cp.sql.query
 import cp.text.fact
 import gym
@@ -15,7 +14,7 @@ import logging
 import numpy as np
 import random
 from sklearn.cluster import KMeans
-from stable_baselines3 import A2C, PPO
+from stable_baselines3 import A2C
 import statistics
 from cp.sql.pred import pred_sql
 
@@ -143,7 +142,7 @@ class IterativeClusters():
         logging.debug(f'Batches before iteration: {self.id_to_be}')
         to_split_idx = self._select()
         to_split = self.id_to_be[to_split_idx]
-        split = self._signum_split(to_split)
+        split = self._even_split(to_split)
         del self.id_to_be[to_split_idx]
         
         for b in split:
@@ -222,7 +221,7 @@ class IterativeClusters():
         """
         ids = self.id_to_be.keys()
         return max(ids, key=lambda b_id:
-                   self._priority_count(
+                   self._priority_avg(
                        self.id_to_be[b_id]))
     
     def _signum_split(self, b_e):
