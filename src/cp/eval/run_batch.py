@@ -83,7 +83,7 @@ if __name__ == '__main__':
                             key=lambda k:text_to_reward[k])
                         out_file.write(
                             f'{nr_facts},{nr_preds},sample,0,{total_s},' +\
-                            f'{cmp_pred},"{text}",{reward}\n')
+                            f'"{cmp_pred}","{text}",{reward}\n')
 
                         if time.time() - batch_start_s > 14400:
                             break
