@@ -7,6 +7,7 @@ Analyzes results for approaches summarizing item batches.
 '''
 import argparse
 import cp.stats.common
+import matplotlib.pyplot as plt
 import pandas as pd
 
 if __name__ == '__main__':
@@ -22,16 +23,21 @@ if __name__ == '__main__':
     df = df.loc[:,['nrfacts', 'nrpreds', 'approach', 'itemtime','fquality']]
     print(df.info())
     
-    sum_agg = df.groupby(['nrfacts', 'nrpreds', 'approach'], 
+    sum_agg = df.groupby(['nrfacts', 'nrpreds', 'approach'],
                          as_index=False).sum()
-    avg_agg = df.groupby(['nrfacts', 'nrpreds', 'approach'], 
+    avg_agg = df.groupby(['nrfacts', 'nrpreds', 'approach'],
                          as_index=False).mean()
     print(sum_agg)
     print(avg_agg)
     
+    plt.rcParams.update({'text.usetex': True, 'font.size':9,
+                         'font.serif':['Computer Modern'],
+                         'font.family':'serif'})
+    plt.close('all')
+    
     cp.stats.common.perf_breakdown(
-        sum_agg, ['SP', 'B', 'CB'], 'itemtime', 
-        None, 'Time (s)', 'linear', f'{args.out_pre}timebreak.pdf')
+        df, 'approach', ['SP', 'SC', 'CP'], 'Approach', 'itemtime', 
+        None, 'Time (s)', 'log', f'{args.out_pre}timebreak.pdf')
     cp.stats.common.perf_breakdown(
-        avg_agg, ['SP', 'B', 'CB'], 'fquality', 
+        df, 'approach', ['SP', 'SC', 'CP'], 'Approach', 'fquality',
         None, 'Quality', 'linear', f'{args.out_pre}qualbreak.pdf')
