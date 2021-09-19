@@ -79,7 +79,7 @@ def perf_plot(df, approaches, metric, y_bounds, y_label, y_mode, out_path):
     scenario_names = ['Laptops (30 KB)', 
                       'Tools (10 MB)',
                       'Flights (900 MB)',
-                      'Liquors (5 GB)']
+                      'Sales (5 GB)']
     for scenario_id, scenario in enumerate([0, 1, 2, 3]):
         cur_df = df.query(f'scenario == {scenario}')
         df_pivot = cur_df.pivot(
