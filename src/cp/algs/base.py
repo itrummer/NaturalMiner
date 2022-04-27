@@ -3,6 +3,7 @@ Created on Jul 21, 2021
 
 @author: immanueltrummer
 '''
+import cp.algs.vizier
 import cp.cache.static
 import cp.text.fact
 import cp.sql.query
@@ -166,3 +167,63 @@ def gen_rl(timeout_s, **kwargs):
     p_stats['evaluation_time'] = eval_total_s
     
     return t_to_q, p_stats
+
+
+def vizier_sums(
+        timeout_s, connection, table, dim_cols, 
+        agg_cols, cmp_pred, nr_facts, nr_preds, preamble, 
+        dims_tmp, aggs_txt, all_preds, **kwargs):
+    """ Generates and evaluates one random summary.
+    
+    Args:
+        timeout_s: max. time in seconds
+        connection: connects to database
+        table: summarize this table
+        dim_cols: dimension columns
+        agg_cols: aggregation columns
+        cmp_pred: identifies entity to advertise
+        nr_facts: max. number of facts in summary
+        nr_preds: max. number of predicates per fact
+        preamble: start summary with this text
+        dims_tmp: text templates for dimensions
+        aggs_txt: text describing aggregates
+        all_preds: all possible predicates
+    
+    Returns:
+        Dictionary mapping summaries to reward, statistics
+    """
+    start_s = time.time()
+    cache = cp.cache.static.EmptyCache()
+    q_engine = cp.sql.query.QueryEngine(
+        connection, table, cmp_pred, cache)
+    s_gen = cp.text.sum.SumGenerator(
+        all_preds, preamble, dim_cols, dims_tmp, 
+        agg_cols, aggs_txt, q_engine)
+    s_eval = cp.text.sum.SumEvaluator()
+
+    pred_cnt = len(all_preds)
+    agg_cnt = len(agg_cols)
+    text_to_quality = {}
+    v_sum = cp.algs.vizier.VizierSum(nr_facts, nr_preds, pred_cnt, agg_cnt)
+    
+    counter = 0
+    while True:
+        counter += 1
+        
+        trial_name, facts = v_sum.suggest_summary()
+        text, _ = s_gen.generate(facts)
+        quality = s_eval.evaluate(text)
+        text_to_quality[text] = quality
+        v_sum.register_feedback(trial_name, quality)
+        
+        total_s = time.time() - start_s
+        if total_s > timeout_s:
+            break
+    
+    stats = {'time':total_s}
+    stats.update(cache.statistics())
+    stats.update(q_engine.statistics())
+    stats.update(s_gen.statistics())
+    stats.update(s_eval.statistics())
+    
+    return text_to_quality, stats

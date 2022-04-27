@@ -81,6 +81,23 @@ class Fact():
         """ Reset properties to default values. """
         self.props = [0] * self.nr_props
     
+    def set_agg(self, value):
+        """ Set aggregate to given value.
+        
+        Args:
+            value: index of aggregation column
+        """
+        self.props[self.nr_preds] = value
+    
+    def set_pred(self, pred_idx, value):
+        """ Set predicate to given value.
+        
+        Args:
+            pred_idx: index of predicate to set
+            value: set predicate to this value
+        """
+        self.props[pred_idx] = value
+    
     def to_txt(self, preamble, dim_cols, all_preds, 
              dims_tmp, agg_cols, q_engine, aggs_txt):
         """ Generate text describing fact with confidence. 
