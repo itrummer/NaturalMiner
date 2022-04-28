@@ -157,7 +157,7 @@ class VizierSum():
             int_value_spec = {}
             int_value_spec['min_value'] = 0
             int_value_spec['max_value'] = agg_cnt - 1
-            p['int_value_spec'] = int_value_spec
+            p['integer_value_spec'] = int_value_spec
             parameters.append(p)
             
             for pred_idx in range(nr_preds):
