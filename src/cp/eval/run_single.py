@@ -220,7 +220,6 @@ def main():
                         t['dim_cols'], t['cmp_pred'])
                     pred_cnt = len(all_preds)
                     print(f'Predicate search space size: {pred_cnt}')
-                    continue
 
                     for nr_facts in [1, 2, 3]:
                         for nr_preds in [1, 2, 3]:
