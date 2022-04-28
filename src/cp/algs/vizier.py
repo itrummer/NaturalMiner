@@ -113,7 +113,7 @@ class VizierSum():
             summary specified by trial suggestions
         """
         summary = []
-        for _ in range(self.nr_preds):
+        for _ in range(self.nr_facts):
             fact = cp.text.fact.Fact(self.nr_preds)
             summary.append(fact)
         
