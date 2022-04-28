@@ -4,7 +4,7 @@ Created on Apr 27, 2022
 @author: immanueltrummer
 '''
 import cp.text.fact
-import datetime.datetime
+import datetime
 import googleapiclient.discovery
 import google.cloud.storage
 import os
