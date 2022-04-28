@@ -126,6 +126,23 @@ def run_gen(connection, test_case, all_preds, timeout_s):
         all_preds=all_preds, **test_case)
 
 
+def run_viz(connection, test_case, all_preds, timeout_s):
+    """ Run baseline using Google Vizier platform. 
+    
+    Args:
+        connection: connection to database
+        test_case: describes summarization task
+        all_preds: all available predicates
+        timeout_s: time limit for iterations
+    
+    Returns:
+        summaries with quality, performance statistics
+    """
+    return cp.algs.base.vizier_sums(
+        timeout_s=timeout_s, all_preds=all_preds,
+        connection=connection, **test_case)
+
+
 def log_line(outfile, b_id, t_id, nr_facts, 
              nr_preds, m_id, sums, p_stats):
     """ Writes one line to log file.
@@ -210,14 +227,15 @@ def main():
                             t['nr_facts'] = nr_facts
                             t['nr_preds'] = nr_preds
                                                         
-                            sums, p_stats = run_rl(
-                                connection, t, all_preds, 
-                                nr_samples, 'proactive', False)
-                            log_line(
-                                file, b_id, t_id, nr_facts, nr_preds, 
-                                'rlNCproactive', sums, p_stats)
+                            # sums, p_stats = run_rl(
+                                # connection, t, all_preds, 
+                                # nr_samples, 'proactive', False)
+                            # log_line(
+                                # file, b_id, t_id, nr_facts, nr_preds, 
+                                # 'rlNCproactive', sums, p_stats)
                                 
-                            for c_type in ['empty', 'proactive']:
+                            # for c_type in ['empty', 'proactive']:
+                            for c_type in ['proactive']:
                                 sums, p_stats = run_sampling(
                                     connection, t, all_preds, c_type)
                                 log_line(
@@ -232,24 +250,30 @@ def main():
                                     'rl' + c_type, sums, p_stats)
                             timeout_s = p_stats['time']
                             
-                            sums, p_stats = run_random(
-                                connection, t, all_preds, 1, float('inf'))
-                            log_line(
-                                file, b_id, t_id, nr_facts,
-                                nr_preds, 'rand1', sums, p_stats)
-                                
-                            sums, p_stats = run_random(
-                                connection, t, all_preds, 
-                                float('inf'), timeout_s)
-                            log_line(
-                                file, b_id, t_id, nr_facts,
-                                nr_preds, 'rand', sums, p_stats)
-                                
-                            sums, p_stats = run_gen(
+                            # sums, p_stats = run_random(
+                                # connection, t, all_preds, 1, float('inf'))
+                            # log_line(
+                                # file, b_id, t_id, nr_facts,
+                                # nr_preds, 'rand1', sums, p_stats)
+                                #
+                            # sums, p_stats = run_random(
+                                # connection, t, all_preds, 
+                                # float('inf'), timeout_s)
+                            # log_line(
+                                # file, b_id, t_id, nr_facts,
+                                # nr_preds, 'rand', sums, p_stats)
+                                #
+                            # sums, p_stats = run_gen(
+                                # connection, t, all_preds, timeout_s)
+                            # log_line(
+                                # file, b_id, t_id, nr_facts,
+                                # nr_preds, 'gen', sums, p_stats)
+                            
+                            sums, p_stats = run_viz(
                                 connection, t, all_preds, timeout_s)
                             log_line(
                                 file, b_id, t_id, nr_facts,
-                                nr_preds, 'gen', sums, p_stats)
+                                nr_preds, 'viz', sums, p_stats)
 
 if __name__ == '__main__':
     main()
