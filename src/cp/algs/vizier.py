@@ -32,6 +32,7 @@ class VizierSum():
         timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
         self.study_id = f'itrummer_study_{timestamp}'
         self.study_parent = f'projects/{self.project_id}/locations/us-central1'
+        self.study_name = f'{self.study_parent}/studies/{self.study_id}'
         self.client_id = 'summary-client'
 
         self.client = self._client()
@@ -63,7 +64,7 @@ class VizierSum():
         """
         body = {'client_id': self.client_id, 'suggestion_count': 1}
         trial_response = self.trials.suggest(
-            parent=self.study_parent, body=body).execute()
+            parent=self.study_name, body=body).execute()
         op_id = trial_response['name'].split('/')[-1]
         op_name = f'{self.study_parent}/operations/{op_id}'
         
