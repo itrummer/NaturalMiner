@@ -59,7 +59,7 @@ def perf_breakdown(
             ax.set_yscale(y_mode)
 
     #plt.subplots_adjust(wspace=0.3, hspace=0.4)
-    plt.tight_layout(1.05)
+    plt.tight_layout(pad=1.05)
     plt.savefig(out_path)
 
 
@@ -99,7 +99,7 @@ def perf_plot(df, approaches, metric, y_bounds, y_label, y_mode, out_path):
         ax.set_yscale(y_mode)
         ax.boxplot(x=plot_data, labels=approaches, showmeans=True)
     
-    plt.tight_layout(1.05)
+    plt.tight_layout(pad=1.05)
     #plt.subplots_adjust(hspace=0.7)
     plt.savefig(out_path)
 
@@ -117,7 +117,7 @@ def preprocess(df):
         'sampleempty':'SB', 'sampleproactive':'SP', 
         'rlcube':'C', 'rlproactive':'P', 'rlNCproactive':'PN',
         'sample':'SP', 'simple':'SC', 'cluster':'CBR', 
-        'bestof':'CP'}
+        'bestof':'CP', 'viz':'V'}
     df['approach'] = df['approach'].apply(lambda a:methods_short[a])
     df['fquality'] = df['bquality'].apply(lambda q:max(q,-1))
     return df

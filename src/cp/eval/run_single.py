@@ -215,15 +215,18 @@ def main():
             test_batches = cp.eval.bench.generate_testcases()
             for b_id, b in enumerate(test_batches):
                 for t_id, t in enumerate(b):
+                    all_preds = cp.sql.pred.all_preds(
+                        connection, t['table'], 
+                        t['dim_cols'], t['cmp_pred'])
+                    pred_cnt = len(all_preds)
+                    print(f'Predicate search space size: {pred_cnt}')
+                    continue
+
                     for nr_facts in [1, 2, 3]:
                         for nr_preds in [1, 2, 3]:
                     
                             print(f'Next: B{b_id}/T{t_id}; ' \
-                                  f'{nr_facts}F, {nr_preds}P')
-                            
-                            all_preds = cp.sql.pred.all_preds(
-                                connection, t['table'], 
-                                t['dim_cols'], t['cmp_pred'])
+                                  f'{nr_facts}F, {nr_preds}P')                            
                             t['nr_facts'] = nr_facts
                             t['nr_preds'] = nr_preds
                                                         
