@@ -123,12 +123,12 @@ class VizierSum():
             fact_idx = int(properties[1])
             fact = summary[fact_idx]
             
-            value = p['intValue']
+            value = int(p['intValue'])
             p_type = properties[0]
             if p_type == 'A':
                 fact.set_agg(value)
             elif p_type == 'P':
-                pred_idx = properties[2]
+                pred_idx = int(properties[2])
                 fact.set_pred(pred_idx, value)
             else:
                 raise ValueError(f'Unsupported parameter type: {p_type}')
