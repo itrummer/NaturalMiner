@@ -175,4 +175,4 @@ class VizierSum():
         metric['metric'] = 'quality'
         metric['goal'] = 'MAXIMIZE'
         
-        return study
+        return {'study_config': study}
