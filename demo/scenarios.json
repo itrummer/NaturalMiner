@@ -45,6 +45,6 @@
 		"dimensions":"city:sold in <V>\ncountyname:sold in <V>\ncategoryname:of type <V>\nstorename:sold at <V>\nvendorname:produced by <V>",
 		"aggregates":"bottlessold:, the number of bottles per sale\nsalevalue:, the dollar value per sale\nvolumesold:, the volume per sale",
 		"predicates":"itemname='Deep Eddy Lemon w/2 Tin Cups'\nitemname='HA WB Saffell'\nitemname='UV Pink Lemonade'\nitemname='UV Whipped Mini'\nitemname='Rondiaz Rum White PET'",
-		"goal":"it's a great sales item"
+		"goal":"it's a high-revenue item"
 	}
 ]
