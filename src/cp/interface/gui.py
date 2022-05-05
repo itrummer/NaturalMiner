@@ -19,6 +19,7 @@ print(sys.path)
 
 import cp.algs.rl
 import cp.sql.pred
+import cp.text.sum
 
 st.set_page_config(page_title='BABOONS')
 st.markdown('''
@@ -94,13 +95,16 @@ if st.button('Generate Summaries!'):
             cursor_factory=psycopg2.extras.RealDictCursor) as connection:
             connection.autocommit = True
             
+            start_s = time.time()
             all_preds = cp.sql.pred.all_preds(
                 connection, t['table'], 
                 t['dim_cols'], cmp_pred)
-            start_s = time.time()
+            sum_eval = cp.text.sum.SumEvaluator(
+                1, 'facebook/bart-large-mnli', label)
             env = cp.algs.rl.PickingEnv(
                 connection, **t, all_preds=all_preds,
-                c_type='proactive', cluster=True)
+                c_type='proactive', cluster=True,
+                sum_eval=sum_eval)
             model = stable_baselines3.A2C(
                 'MlpPolicy', env, verbose=True, 
                 gamma=1.0, normalize_advantage=True)

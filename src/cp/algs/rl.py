@@ -94,7 +94,8 @@ class PickingEnv(gym.Env):
     def __init__(self, connection, table, dim_cols, 
                  agg_cols, cmp_preds, nr_facts, nr_preds,
                  degree, max_steps, preamble, dims_tmp, 
-                 aggs_txt, all_preds, c_type, cluster):
+                 aggs_txt, all_preds, c_type, cluster,
+                 sum_eval=SumEvaluator()):
         """ Read database to initialize environment. 
         
         Args:
@@ -113,6 +114,7 @@ class PickingEnv(gym.Env):
             all_preds: all possible predicates
             c_type: type of cache to create
             cluster: whether to cluster search space by embedding
+            sum_eval: assigns summary text to quality values
         """
         super(PickingEnv, self).__init__()
         self.connection = connection
@@ -154,7 +156,7 @@ class PickingEnv(gym.Env):
             self.q_engines.append(q_engine)
             self.s_gens.append(s_gen)
 
-        self.s_eval = SumEvaluator()
+        self.s_eval = sum_eval
         self.props_to_rewards = {}
         self.props_to_conf = {}
         
