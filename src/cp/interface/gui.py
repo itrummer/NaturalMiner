@@ -33,6 +33,7 @@ scenarios_path = root_dir.joinpath('demo').joinpath('scenarios.json')
 with open(scenarios_path) as file:
     scenarios = json.load(file)
 nr_scenarios = len(scenarios)
+print('Example scenarios loaded')
 
 selected = st.selectbox(
     'Select Example (Optional)', options=range(nr_scenarios), 
@@ -72,9 +73,11 @@ nr_iterations = st.slider(
 label = st.text_input(
     'Communication goal:', max_chars=100, 
     value=scenarios[selected]['goal'])
+print('Generated input elements')
 
 
 if st.button('Generate Summaries!'):
+    print('Generating summaries ...')
     for cmp_pred in cmp_preds:
         st.write(f'Characterizing data satisfying predicate "{cmp_pred}" ...')
         dims_col_text = [d.split(':') for d in dims_info]

@@ -20,6 +20,7 @@
 		"preamble":"Among all flights",
 		"dimensions":"flight_date:on <V>\nflight_nr:with number <V>\nstart_airport:from <V>\ndestination_airport:to <V>\nplanned_departure:scheduled for departure at <V>\nactual_departure:that departed at <V>\nwheels_off_time:that took off at <V>\nwheels_on_time:that landed at <V>\nplanned_arrival_time:scheduled to arrive at <V>\nactual_arrival_time:that arrived at <V>\ncancelled:that were <V>\ncancellation_code:with cancellation code <V>\ndiverted:that were <V>\nplanned_flight_time:with a planned flight time of <V> minutes\ndistance:with a flight distance of <V> miles",
 		"aggregates":"departure_delay:, the departure delay\ntaxi_out_time:, the taxi time at departure\ntaxi_in_time:, the taxi time at the destination\narrival_delay:, the arrival delay\nactual_time:, the actual flight time\nair_time:, the air time\ncarrier_delay:, the carrier delay\nweather_delay:, weather delay\nsystem_delay:, airport operations delay\nsecurity_delay:, security delay\nlate_aircraft_delay:, delay to to late aircrafts",
-		"goal":"it's a great airline'"
+		"predicates":"airline='YX'\nairline='VX'\nairline='AA'\nairline='B6'\nairline='F9'",
+		"goal":"it's a great airline"
 	}
 ]
