@@ -22,5 +22,29 @@
 		"aggregates":"departure_delay:, the departure delay\ntaxi_out_time:, the taxi time at departure\ntaxi_in_time:, the taxi time at the destination\narrival_delay:, the arrival delay\nactual_time:, the actual flight time\nair_time:, the air time\ncarrier_delay:, the carrier delay\nweather_delay:, weather delay\nsystem_delay:, airport operations delay\nsecurity_delay:, security delay\nlate_aircraft_delay:, delay to to late aircrafts",
 		"predicates":"airline='YX'\nairline='VX'\nairline='AA'\nairline='B6'\nairline='F9'",
 		"goal":"it's a great airline"
+	},
+	{
+		"scenario":"Tools",
+		"dbconnection":"picker:immanueltrummer:",
+		"table":"sods19",
+		"nr_facts":1,
+		"nr_preds":2,
+		"preamble":"Among all developers",
+		"dimensions":"satisfaction:who are <V> with their job\ndependents:who answered \"<V>\" when asked if they care for dependents\noptimism:who answered \"<V>\" when asked if they feel optimistic\ncodereviews:who answered \"<V>\" when asked if they do code reviews\nunittests:who answered \"<V>\" when asked if they do unit tests\nlanguagesused:who used <V> as programming languages\ncountry:from <V>\ncoarsesalary:with a salary <V>\norgsize:working for a <V> company\njobtype:working <V>\nexperience:who are <V>\ndevrole:who work as <V>\ngender:who are <V>",
+		"aggregates":"salary:, the salary",
+		"predicates":"languagesused like '%Scala%'\nlanguagesused like '%SQL%'\nlanguagesused like '%Go%'\nlanguagesused like '%F#%'\nlanguagesused like '%VBA%'",
+		"goal":"it's a great tool"
+	},
+	{
+		"scenario":"Sales",
+		"dbconnection":"picker:immanueltrummer:",
+		"table":"liquor",
+		"nr_facts":1,
+		"nr_preds":2,
+		"preamble":"Among all liquors",
+		"dimensions":"city:sold in <V>\ncountyname:sold in <V>\ncategoryname:of type <V>\nstorename:sold at <V>\nvendorname:produced by <V>",
+		"aggregates":"bottlessold:, the number of bottles per sale\nsalevalue:, the dollar value per sale\nvolumesold:, the volume per sale",
+		"predicates":"itemname='Deep Eddy Lemon w/2 Tin Cups'\nitemname='HA WB Saffell'\nitemname='UV Pink Lemonade'\nitemname='UV Whipped Mini'\nitemname='Rondiaz Rum White PET'",
+		"goal":"it's a great sales item"
 	}
 ]
