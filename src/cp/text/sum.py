@@ -3,10 +3,10 @@ Created on Jul 22, 2021
 
 @author: immanueltrummer
 '''
-import cp.text.fact
 import logging
 import time
 import transformers
+
 
 class SumGenerator():
     """ Class for generating summaries. """
@@ -77,15 +77,24 @@ class SumGenerator():
         """
         return {'generation_time':self.gen_s}
 
+
 class SumEvaluator():
     """ Class for evaluating data summaries. """
     
-    judge = transformers.pipeline(
-        "sentiment-analysis", 
-        model="siebert/sentiment-roberta-large-english")
-    
-    def __init__(self):
-        """ Initializes cache, statistics, and model. """
+    def __init__(self, goal=0, 
+                 model_name='siebert/sentiment-roberta-large-english', 
+                 label=''):
+        """ Initializes cache, statistics, and model. 
+        
+        Args:
+            goal: optimization goal (0 for default, 1 for customized)
+            model_name: name of Huggingface model used for text evaluation
+            label: compare text to this label for custom goals
+        """
+        self.goal = goal
+        self.model_name = model_name
+        self.label = label
+        self.model = self._init_model()
         self.eval_s = 0
         self.text_to_reward = {}
     
@@ -105,13 +114,7 @@ class SumEvaluator():
             if text in self.text_to_reward:
                 reward = self.text_to_reward[text]
             else:
-                sent = self.judge(text)[0]
-                label = sent['label']
-                score = sent['score']
-                if label == 'POSITIVE':
-                    reward = score
-                else:
-                    reward = -score
+                reward = self._evaluate_text(text)
                 self.text_to_reward[text] = reward
     
             logging.debug(f'Reward {reward} for "{text}"')
@@ -126,3 +129,39 @@ class SumEvaluator():
             dictionary with performance statistics
         """
         return {'evaluation_time':self.eval_s}
+    
+    def _init_model(self):
+        """ Initialize model used for text evaluation.
+        
+        Returns:
+            newly initialized model for evaluation
+        """
+        if self.goal == 0:
+            task = 'sentiment-analysis'
+        elif self.goal == 1:
+            task = 'zero-shot-classification'
+        else:
+            raise ValueError(f'Error - unknown goal code: {self.goal}')
+        return transformers.pipeline(task, model=self.model_name)
+    
+    def _evaluate_text(self, text):
+        """ Evaluate quality of input text. 
+        
+        Returns:
+            quality value between -1 (or 0) and +1 (higher is better)
+        """
+        if self.goal == 0:
+            sent = self.model(text)[0]
+            label = sent['label']
+            score = sent['score']
+            if label == 'POSITIVE':
+                return score
+            else:
+                return -score
+
+        elif self.goal == 1:
+            result = self.model(text, [self.label])
+            return result['scores'][0]
+
+        else:
+            raise ValueError(f'Error - unknown goal code: {self.goal}')

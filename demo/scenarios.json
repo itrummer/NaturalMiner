@@ -1,0 +1,13 @@
+[
+	{
+		"scenario":"Laptops",
+		"dbconnection":"picker:immanueltrummer:",
+		"table":"laptops",
+		"nr_facts":1,
+		"nr_preds":2,
+		"preamble":"Among all laptops",
+		"dimensions":"brand:with <V> brand\nprocessor_type:with <V> CPU\ngraphics_card:with <V> graphics card\ndisk_space:with <V> disk space\nratings_5max:with <V> stars",
+		"aggregates":"display_size:its display size\ndiscount_price:its discounted price\nold_price:its old price",
+		"predicates":"laptop_name='VivoBook S430',laptop_name='Vostro 5471',laptop_name='IdeaPad 330S-15IKB,laptop_name='Aspire 1 A114-31,laptop_name='14-ck0008nx'"]
+	}
+]
