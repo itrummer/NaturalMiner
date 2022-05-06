@@ -1,7 +1,7 @@
 [
 	{
 		"scenario":"Laptops",
-		"dbconnection":"picker:immanueltrummer:",
+		"dbconnection":"picker:ubuntu:",
 		"table":"laptops",
 		"nr_facts":1,
 		"nr_preds":2,
@@ -13,7 +13,7 @@
 	},
 	{
 		"scenario":"Flights",
-		"dbconnection":"picker:immanueltrummer:",
+		"dbconnection":"picker:ubuntu:",
 		"table":"flights",
 		"nr_facts":1,
 		"nr_preds":2,
@@ -25,7 +25,7 @@
 	},
 	{
 		"scenario":"Tools",
-		"dbconnection":"picker:immanueltrummer:",
+		"dbconnection":"picker:ubuntu:",
 		"table":"sods19",
 		"nr_facts":1,
 		"nr_preds":2,
@@ -37,7 +37,7 @@
 	},
 	{
 		"scenario":"Sales",
-		"dbconnection":"picker:immanueltrummer:",
+		"dbconnection":"picker:ubuntu:",
 		"table":"liquor",
 		"nr_facts":1,
 		"nr_preds":2,
