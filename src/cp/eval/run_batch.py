@@ -66,27 +66,27 @@ if __name__ == '__main__':
                     batch['general']['nr_facts'] = nr_facts
                     batch['general']['nr_preds'] = nr_preds
                     
-                    batch_start_s = time.time()
-                    for cmp_pred in batch['predicates']:
-                        test_case = batch['general'].copy()
-                        test_case['cmp_pred'] = cmp_pred
-                        
-                        start_s = time.time()
-                        sampler = cp.algs.sample.Sampler(
-                            connection, test_case, all_preds, 
-                            0.01, 5, 'proactive')
-                        text_to_reward, _ = sampler.run_sampling()
-                        total_s = time.time() - start_s
-                        
-                        reward = max(text_to_reward.values())
-                        text = max(text_to_reward.keys(), 
-                            key=lambda k:text_to_reward[k])
-                        out_file.write(
-                            f'{nr_facts},{nr_preds},sample,0,{total_s},' +\
-                            f'"{cmp_pred}","{text}",{reward}\n')
-
-                        if time.time() - batch_start_s > 14400:
-                            break
+                    # batch_start_s = time.time()
+                    # for cmp_pred in batch['predicates']:
+                        # test_case = batch['general'].copy()
+                        # test_case['cmp_pred'] = cmp_pred
+                        #
+                        # start_s = time.time()
+                        # sampler = cp.algs.sample.Sampler(
+                            # connection, test_case, all_preds, 
+                            # 0.01, 5, 'proactive')
+                        # text_to_reward, _ = sampler.run_sampling()
+                        # total_s = time.time() - start_s
+                        #
+                        # reward = max(text_to_reward.values())
+                        # text = max(text_to_reward.keys(), 
+                            # key=lambda k:text_to_reward[k])
+                        # out_file.write(
+                            # f'{nr_facts},{nr_preds},sample,0,{total_s},' +\
+                            # f'"{cmp_pred}","{text}",{reward}\n')
+                            #
+                        # if time.time() - batch_start_s > 14400:
+                            # break
     
                     nr_items = len(batch['predicates'])
                     start_s = time.time()
