@@ -62,7 +62,10 @@ if __name__ == '__main__':
                     'nrfacts,nrpreds,approach,cluster,' +\
                     'itemtime,pred,text,reward\n')
 
-                for nr_facts, nr_preds in [(1, 1), (2, 2), (3, 3)]:
+                for nr_facts, nr_preds in [
+                        (1, 1), (1, 2), (1, 3),
+                        (2, 1), (2, 2), (2, 3),
+                        (3, 1), (3, 2), (3, 3)]:
                     batch['general']['nr_facts'] = nr_facts
                     batch['general']['nr_preds'] = nr_preds
                     
