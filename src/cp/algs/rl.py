@@ -274,11 +274,13 @@ class PickingEnv(gym.Env):
         rewards = []
         for cmp_pred, gen in zip(self.cmp_preds, self.s_gens):
             text, conf = gen.generate(self.cur_facts)
-            prior_reward = self.prior_best[cmp_pred]
+            prior_reward = self.prior_best[cmp_pred][1]
             this_reward = self.s_eval.evaluate(text)
             reward = max(prior_reward, this_reward)
             rewards.append(reward)
-            logging.debug(f'Reward {reward} for {text}')
+            logging.debug(
+                f'Reward {this_reward} for {text}; ' +\
+                f'prior reward: {prior_reward}')
             if conf is not None:
                 confs.append(conf)
         
