@@ -507,7 +507,7 @@ class SubModularIterative():
         env = cp.algs.rl.PickingEnv(
             self.connection, **test_case, 
             all_preds=self.all_preds,
-            c_type='dynamic', cluster=True,
+            c_type='proactive', cluster=True,
             prior_best=self.best_sums)
         model = A2C(
             'MlpPolicy', env, verbose=True, 
