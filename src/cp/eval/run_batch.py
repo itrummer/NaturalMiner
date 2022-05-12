@@ -11,6 +11,7 @@ import json
 import logging
 import psycopg2
 from psycopg2.extras import RealDictCursor
+import statistics
 import time
 import cp.algs.batch
 from cp.algs.batch import IterativeClusters
@@ -32,6 +33,24 @@ def log_ic_results(nr_facts, nr_preds, method, avg_s, ic, out_file):
             out_file.write(
                 f'{nr_facts},{nr_preds},{method},{c_id},' +\
                 f'{avg_s},"{pred}","{d_sum}",{reward}\n')
+
+
+def log_si_results(nr_facts, nr_preds, method, iteration, avg_s, si, out_file):
+    """ Log results of sub-modular, iterative algorithm.
+    
+    Args:
+        nr_facts: number of facts
+        nr_preds: number of predicates
+        method: string ID of method used
+        avg_s: average seconds per item
+        si: sub-modular iterative optimizer
+        out_file: handle to output file
+    """
+    for cmp_pred, (d_sum, quality) in si.best_sums.items():
+        out_file.write(
+            f'{nr_facts},{nr_preds},{method},{iteration},' +\
+            f'{avg_s},"{cmp_pred}","{d_sum}",{quality}\n')
+
 
 if __name__ == '__main__':
 
@@ -60,7 +79,7 @@ if __name__ == '__main__':
                     connection, batch['general']['table'], 
                     batch['general']['dim_cols'], 'true')                
                 out_file.write(
-                    'nrfacts,nrpreds,approach,cluster,' +\
+                    'nrfacts,nrpreds,approach,iteration,' +\
                     'itemtime,pred,text,reward\n')
 
                 for nr_facts, nr_preds in [
@@ -94,23 +113,15 @@ if __name__ == '__main__':
     
                     nr_items = len(batch['predicates'])
                     start_s = time.time()
-                    si = cp.algs.batch.SubModularIterative(connection, batch, all_preds)
-                    # ic = IterativeClusters(connection, batch, all_preds)
-                    # total_s = time.time() - start_s
-                    # avg_s = total_s / nr_items
-                    # log_ic_results(
-                        # nr_facts, nr_preds, 
-                        # 'simple', avg_s, ic, out_file)
+                    si = cp.algs.batch.SubModularIterative(
+                        connection, batch, all_preds)
                     
                     for i in range(3):
+                        start_s = time.time()
                         logging.info(f'Starting batch iteration {i}')
                         si.iterate()
-                        # ic.iterate()
-                    total_s = time.time() - start_s
-                    avg_s = total_s / nr_items
-                    log_ic_results(
-                        nr_facts, nr_preds, 
-                        'cluster', avg_s, si, out_file)
-                    # log_ic_results(
-                        # nr_facts, nr_preds, 
-                        # 'cluster', avg_s, ic, out_file)
+                        q_values = [v[1] for v in si.best_sums.values()]
+                        print(f'Average quality: {statistics.mean(q_values)}')
+                        total_s = time.time() - start_s
+                        avg_s = total_s / nr_items
+                        log_si_results(nr_facts, nr_preds, 'si', i, avg_s, si, out_file)

@@ -489,6 +489,7 @@ class SubModularIterative():
         Returns:
             List of facts representing summary sketch
         """
+        print('Selecting next sketch ...')
         test_case = self.batch['general'].copy()
         all_cmp_preds = self.batch['predicates']
         if not all_cmp_preds:
@@ -498,6 +499,8 @@ class SubModularIterative():
         cmp_preds = random.choices(all_cmp_preds, k=to_select)
         test_case['cmp_preds'] = cmp_preds
     
+        total_timesteps = 50
+        print(f'Iterating for {total_timesteps} steps ...')
         env = cp.algs.rl.PickingEnv(
             self.connection, **test_case, 
             all_preds=self.all_preds,
@@ -506,7 +509,7 @@ class SubModularIterative():
         model = A2C(
             'MlpPolicy', env, verbose=True, 
             gamma=1.0, normalize_advantage=True)
-        model.learn(total_timesteps=200)
+        model.learn(total_timesteps=total_timesteps)
         
         if env.props_to_rewards:
             best = sorted(env.props_to_rewards.items(), key=lambda i:i[1])[-1]
