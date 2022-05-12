@@ -466,13 +466,16 @@ class SubModularIterative():
         Each item is assigned to the summary with maximal 
         quality (either the new summary or a prior summary).
         """
+        logging.info('Picking new sketch ...')
         best_props = self._pick_sketch()
         solution = {
             cmp_pred:best_props for 
             cmp_pred in self.all_cmp_preds}
+        logging.info('Evaluating sketch ...')
         s_eval = eval_solution(
             self.connection, self.batch, 
             self.all_preds, solution)
+        logging.info('Pruning sketches ...')
         for cmp_pred, (d_sum, quality) in s_eval.items():
             _, prior_quality = self.best_sums[cmp_pred]
             if prior_quality < quality:
