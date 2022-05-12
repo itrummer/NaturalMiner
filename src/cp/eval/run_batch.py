@@ -83,9 +83,9 @@ if __name__ == '__main__':
                     'itemtime,pred,text,reward\n')
 
                 for nr_facts, nr_preds in [
-                        (1, 1), (1, 2), (1, 3),
+                        (3, 1), (3, 2), (3, 3),
                         (2, 1), (2, 2), (2, 3),
-                        (3, 1), (3, 2), (3, 3)]:
+                        (1, 1), (1, 2), (1, 3),]:
                     batch['general']['nr_facts'] = nr_facts
                     batch['general']['nr_preds'] = nr_preds
                     
@@ -123,4 +123,6 @@ if __name__ == '__main__':
                         logging.info(f'Average quality: {statistics.mean(q_values)}')
                         total_s = time.time() - start_s
                         avg_s = total_s / nr_items
-                        log_si_results(nr_facts, nr_preds, 'si', i, avg_s, si, out_file)
+                        log_si_results(
+                            nr_facts, nr_preds, 'si', 
+                            i, avg_s, si, out_file)
