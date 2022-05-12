@@ -209,7 +209,7 @@ class PickingEnv(gym.Env):
         """ Change fact or trigger evaluation. """
         self.nr_ep_steps += 1
         self.nr_t_steps += 1
-        logging.debug(f'Step {self.nr_t_steps} (in episode: {self.nr_ep_steps})')
+        logging.info(f'Step {self.nr_t_steps} (in episode: {self.nr_ep_steps})')
         
         if self.nr_ep_steps >= self.max_steps:
             done = True
