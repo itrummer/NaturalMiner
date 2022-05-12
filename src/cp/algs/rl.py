@@ -253,7 +253,7 @@ class PickingEnv(gym.Env):
             newly created cache object
         """
         if c_type == 'dynamic':
-            cache = cp.cache.dynamic.DynamicCache(connection)
+            cache = cp.cache.dynamic.DynamicCache(connection, table, cmp_pred)
         elif c_type == 'empty':
             cache = cp.cache.static.EmptyCache()
         elif c_type == 'cube':
