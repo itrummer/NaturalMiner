@@ -454,16 +454,41 @@ class SubModularIterative():
         self.connection = connection
         self.batch = batch
         self.all_preds = all_preds
-        self.best_sums = {p:('', -1) for p in all_preds}
-        
-                
-        solution = simple_batch(connection, batch, all_preds)
-        s_eval = eval_solution(connection, batch, all_preds, solution)
-        self.id_to_be = {0:(batch, s_eval)}
-
+        self.all_cmp_preds = batch['predicates']
+        self.best_sums = {p:('', -1) for p in self.all_cmp_preds}
 
     def iterate(self):
-        """ Performs one iteration. """
+        """ Performs one iteration to improve summary quality. 
+        
+        The algorithm selects a sample of items. Next, it uses
+        reinforcement learning to find a summary sketch which
+        improves summary quality for those items maximally.
+        Each item is assigned to the summary with maximal 
+        quality (either the new summary or a prior summary).
+        """
+        best_props = self._pick_sketch()
+        solution = {
+            cmp_pred:best_props for 
+            cmp_pred in self.all_cmp_preds}
+        s_eval = eval_solution(
+            self.connection, self.batch, 
+            self.all_preds, solution)
+        for cmp_pred, (d_sum, quality) in s_eval.items():
+            _, prior_quality = self.best_sums[cmp_pred]
+            if prior_quality < quality:
+                self.best_sums[cmp_pred] = d_sum, quality
+    
+    def _pick_sketch(self):
+        """ Pick a summary sketch that is optimally complementary.
+        
+        Picks a summary sketch that optimally complements previously
+        considered summary sketches. This means that the improvement
+        by assigning items not covered well by previous summaries
+        to this sketch is maximal.
+        
+        Returns:
+            List of facts representing summary sketch
+        """
         test_case = self.batch['general'].copy()
         all_cmp_preds = self.batch['predicates']
         if not all_cmp_preds:
@@ -476,7 +501,8 @@ class SubModularIterative():
         env = cp.algs.rl.PickingEnv(
             self.connection, **test_case, 
             all_preds=self.all_preds,
-            c_type='empty', cluster=True)
+            c_type='empty', cluster=True,
+            prior_best=self.best_sums)
         model = A2C(
             'MlpPolicy', env, verbose=True, 
             gamma=1.0, normalize_advantage=True)
@@ -491,4 +517,4 @@ class SubModularIterative():
             fact = cp.text.fact.Fact(nr_preds)
             best_props = nr_facts * [fact]
         
-        return {p:best_props for p in batch['predicates']}
+        return best_props

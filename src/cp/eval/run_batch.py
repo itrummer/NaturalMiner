@@ -12,6 +12,7 @@ import logging
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import time
+import cp.algs.batch
 from cp.algs.batch import IterativeClusters
 
 
@@ -93,18 +94,23 @@ if __name__ == '__main__':
     
                     nr_items = len(batch['predicates'])
                     start_s = time.time()
-                    ic = IterativeClusters(connection, batch, all_preds)
-                    total_s = time.time() - start_s
-                    avg_s = total_s / nr_items
-                    log_ic_results(
-                        nr_facts, nr_preds, 
-                        'simple', avg_s, ic, out_file)
+                    si = cp.algs.batch.SubModularIterative(connection, batch, all_preds)
+                    # ic = IterativeClusters(connection, batch, all_preds)
+                    # total_s = time.time() - start_s
+                    # avg_s = total_s / nr_items
+                    # log_ic_results(
+                        # nr_facts, nr_preds, 
+                        # 'simple', avg_s, ic, out_file)
                     
                     for i in range(3):
                         logging.info(f'Starting batch iteration {i}')
-                        ic.iterate()
+                        si.iterate()
+                        # ic.iterate()
                     total_s = time.time() - start_s
                     avg_s = total_s / nr_items
                     log_ic_results(
                         nr_facts, nr_preds, 
-                        'cluster', avg_s, ic, out_file)
+                        'cluster', avg_s, si, out_file)
+                    # log_ic_results(
+                        # nr_facts, nr_preds, 
+                        # 'cluster', avg_s, ic, out_file)
