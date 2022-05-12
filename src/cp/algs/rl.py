@@ -95,7 +95,8 @@ class PickingEnv(gym.Env):
                  agg_cols, cmp_preds, nr_facts, nr_preds,
                  degree, max_steps, preamble, dims_tmp, 
                  aggs_txt, all_preds, c_type, cluster,
-                 sum_eval=SumEvaluator()):
+                 sum_eval=SumEvaluator(),
+                 prior_best=defaultdict(lambda _:-1)):
         """ Read database to initialize environment. 
         
         Args:
@@ -115,6 +116,7 @@ class PickingEnv(gym.Env):
             c_type: type of cache to create
             cluster: whether to cluster search space by embedding
             sum_eval: assigns summary text to quality values
+            prior_best: maps predicates to quality of best prior summary
         """
         super(PickingEnv, self).__init__()
         self.connection = connection
@@ -157,6 +159,7 @@ class PickingEnv(gym.Env):
             self.s_gens.append(s_gen)
 
         self.s_eval = sum_eval
+        self.prior_best = prior_best
         self.props_to_rewards = {}
         self.props_to_conf = {}
         
@@ -269,9 +272,11 @@ class PickingEnv(gym.Env):
         """ Evaluate quality of current summary. """
         confs = []
         rewards = []
-        for gen in self.s_gens:
+        for cmp_pred, gen in zip(self.cmp_preds, self.s_gens):
             text, conf = gen.generate(self.cur_facts)
-            reward = self.s_eval.evaluate(text)
+            prior_reward = self.prior_best[cmp_pred]
+            this_reward = self.s_eval.evaluate(text)
+            reward = max(prior_reward, this_reward)
             rewards.append(reward)
             logging.debug(f'Reward {reward} for {text}')
             if conf is not None:

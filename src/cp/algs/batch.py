@@ -18,6 +18,7 @@ from stable_baselines3 import A2C
 import statistics
 from cp.sql.pred import pred_sql
 
+
 def eval_solution(connection, batch, all_preds, solution):
     """ Evaluates solution to batch summarization problem.
     
@@ -73,6 +74,7 @@ def eval_solution(connection, batch, all_preds, solution):
     
     return result
 
+
 def simple_batch(connection, batch, all_preds):
     """ Simple baseline using same summary template for entire batch.
     
@@ -93,13 +95,6 @@ def simple_batch(connection, batch, all_preds):
     cmp_preds = random.choices(all_cmp_preds, k=to_select)
     test_case['cmp_preds'] = cmp_preds
 
-    # src_table = batch['general']['table']
-    # full_card = cp.sql.cost.cardinality(connection, src_table)
-    # sample_card = max(full_card * 0.01, 10000)
-    # sample = f'(select * from {src_table} limit {sample_card}) as T'
-    # test_case['table'] = sample
-
-        
     env = cp.algs.rl.PickingEnv(
         connection, **test_case, all_preds=all_preds,
         c_type='empty', cluster=True)
@@ -443,3 +438,57 @@ class BatchProcessor():
         
         logging.debug(results)
         return nr_features, results
+
+
+class SubModularIterative():
+    """ Iteratively improves summaries based on sub-modularity. """
+    
+    def __init__(self, connection, batch, all_preds):
+        """ Initialize for given problem.
+        
+        Args:
+            connection: connection to database
+            batch: batch containing all items
+            all_preds: all predicates on dimensions
+        """
+        self.connection = connection
+        self.batch = batch
+        self.all_preds = all_preds
+        self.best_sums = {p:('', -1) for p in all_preds}
+        
+                
+        solution = simple_batch(connection, batch, all_preds)
+        s_eval = eval_solution(connection, batch, all_preds, solution)
+        self.id_to_be = {0:(batch, s_eval)}
+
+
+    def iterate(self):
+        """ Performs one iteration. """
+        test_case = self.batch['general'].copy()
+        all_cmp_preds = self.batch['predicates']
+        if not all_cmp_preds:
+            return {}
+    
+        to_select = min(10, len(all_cmp_preds))
+        cmp_preds = random.choices(all_cmp_preds, k=to_select)
+        test_case['cmp_preds'] = cmp_preds
+    
+        env = cp.algs.rl.PickingEnv(
+            self.connection, **test_case, 
+            all_preds=self.all_preds,
+            c_type='empty', cluster=True)
+        model = A2C(
+            'MlpPolicy', env, verbose=True, 
+            gamma=1.0, normalize_advantage=True)
+        model.learn(total_timesteps=200)
+        
+        if env.props_to_rewards:
+            best = sorted(env.props_to_rewards.items(), key=lambda i:i[1])[-1]
+            best_props = best[0]
+        else:
+            nr_facts = test_case['nr_facts']
+            nr_preds = test_case['nr_preds']
+            fact = cp.text.fact.Fact(nr_preds)
+            best_props = nr_facts * [fact]
+        
+        return {p:best_props for p in batch['predicates']}
