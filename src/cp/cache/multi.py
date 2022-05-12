@@ -59,27 +59,28 @@ class MultiItemCache(AggCache):
                         table, all_preds, cmp_pred, 
                         agg_cols, fact)
                     self.q_to_r[agg_q] = rel_avg
-                
-                # Determine items with empty data sets
-                sql = f'select distinct {cmp_col} as cmp_col from {table}'
-                cursor.execute(sql)
-                rows = cursor.fetchall()
-                for row in rows:
-                    cmp_val = row['cmp_col']
-                    cmp_pred = pred_sql(cmp_col, cmp_val)
-                    agg_q = AggQuery.from_fact(
-                        table, all_preds, cmp_pred, 
-                        agg_cols, fact)
-                    if agg_q not in self.q_to_r:
-                        self.q_to_r[agg_q] = None
+                #
+                # # Determine items with empty data sets
+                # sql = f'select distinct {cmp_col} as cmp_col from {table}'
+                # cursor.execute(sql)
+                # rows = cursor.fetchall()
+                # for row in rows:
+                    # cmp_val = row['cmp_col']
+                    # cmp_pred = pred_sql(cmp_col, cmp_val)
+                    # agg_q = AggQuery.from_fact(
+                        # table, all_preds, cmp_pred, 
+                        # agg_cols, fact)
+                    # if agg_q not in self.q_to_r:
+                        # self.q_to_r[agg_q] = None
             
         logging.debug(f'Multi-item cache content: {self.q_to_r}')
     
-    def can_answer(self, query):
-        return True if query in self.q_to_r else False
+    def can_answer(self, _):
+        """ Un-cached queries return None value by default. """
+        return True
     
     def get_result(self, query):
-        return self.q_to_r[query], -1
+        return self.q_to_r.get(query), -1
     
     def statistics(self):
         return {'cache_hits':-1, 'cache_misses':-1}
