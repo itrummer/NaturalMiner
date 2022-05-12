@@ -112,7 +112,6 @@ if __name__ == '__main__':
                             # break
     
                     nr_items = len(batch['predicates'])
-                    start_s = time.time()
                     si = cp.algs.batch.SubModularIterative(
                         connection, batch, all_preds)
                     
@@ -121,7 +120,7 @@ if __name__ == '__main__':
                         logging.info(f'Starting batch iteration {i}')
                         si.iterate()
                         q_values = [v[1] for v in si.best_sums.values()]
-                        print(f'Average quality: {statistics.mean(q_values)}')
+                        logging.info(f'Average quality: {statistics.mean(q_values)}')
                         total_s = time.time() - start_s
                         avg_s = total_s / nr_items
                         log_si_results(nr_facts, nr_preds, 'si', i, avg_s, si, out_file)
