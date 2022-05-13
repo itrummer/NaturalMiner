@@ -140,7 +140,7 @@ class SumEvaluator():
         results = []
         for batch in batches:
             batch_results = self.model(batch, batch_size=8)
-            for idx, text in batch:
+            for idx, text in enumerate(batch):
                 if not text:
                     batch_results[idx] = -10
             results += batch_results
