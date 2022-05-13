@@ -5,6 +5,7 @@ Created on Jul 22, 2021
 '''
 import logging
 import time
+import torch
 import transformers
 
 
@@ -154,7 +155,14 @@ class SumEvaluator():
             task = 'zero-shot-classification'
         else:
             raise ValueError(f'Error - unknown goal code: {self.goal}')
-        return transformers.pipeline(task, model=self.model_name)
+        
+        if torch.cuda.is_available():
+            device = torch.cuda.current_device()
+        else:
+            device = -1
+        return transformers.pipeline(
+            task, model=self.model_name, 
+            device=device)
     
     def _evaluate_text(self, text):
         """ Evaluate quality of input text. 

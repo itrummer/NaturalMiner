@@ -52,7 +52,6 @@ def eval_solution(connection, batch, all_preds, solution):
     
     result = {}
     for sum_tmp, cmp_preds in sum_to_preds.items():
-        
         cache = cp.cache.multi.MultiItemCache(
             connection, table, cmp_col, 
             all_preds, agg_cols, sum_tmp)
