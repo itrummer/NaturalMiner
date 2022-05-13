@@ -13,6 +13,31 @@ import logging
 from stable_baselines3 import A2C
 import time
 
+def create_sample(connection, table, sample_ratio):
+    """ Creates table containing sample from source.
+    
+    Args:
+        connection: connection to database
+        table: name of sample source table
+        sample_ratio: ratio of samples
+    
+    Returns:
+        name of table containing sample
+    """
+    total_rows, _ = cp.sql.cost.estimates(
+        connection, f'select * from {table}')
+    sample_rows = int(
+        max(10000, total_rows * sample_ratio))
+    
+    sample_tbl = f'{table}_sample'
+    with connection.cursor() as cursor:
+        cursor.execute(f'drop table if exists {sample_tbl}')
+        cursor.execute(f'create unlogged table {sample_tbl} as ' \
+                       f'(select * from {table} limit {sample_rows})')
+    
+    return sample_tbl
+
+
 class Sampler():
     """ Selects data summaries via sampling. """
     
@@ -69,24 +94,7 @@ class Sampler():
             total_cost += cost
         
         return total_cost
-    
-    def _create_sample(self):
-        """ Creates table containing sample from source.
-        
-        Returns:
-            name of table containing sample
-        """
-        total_rows, _ = cp.sql.cost.estimates(
-            self.connection, f'select * from {self.table}')
-        sample_rows = int(max(10000, total_rows * self.sample_ratio))
-        
-        sample_tbl = f'{self.table}_sample'
-        with self.connection.cursor() as cursor:
-            cursor.execute(f'drop table if exists {sample_tbl}')
-            cursor.execute(f'create unlogged table {sample_tbl} as ' \
-                           f'(select * from {self.table} limit {sample_rows})')
-        
-        return sample_tbl
+
     
     def _fill_cache(self, sam_sums):
         """ Fill cache with query results needed to generate summaries.
@@ -205,7 +213,9 @@ class Sampler():
             summaries sorted by estimated quality (descending), statistics
         """
         sample_case = self.test_case.copy()
-        table_sample = self._create_sample()
+        table_sample = create_sample(
+            self.connection, self.table, 
+            self.sample_ratio)
         sample_case['table'] = table_sample
         cmp_pred = sample_case['cmp_pred']
         del sample_case['cmp_pred']

@@ -5,6 +5,7 @@ Created on Aug 15, 2021
 '''
 import collections
 import cp.algs.rl
+import cp.algs.sample
 import cp.cache.multi
 import cp.sql.query
 import cp.text.fact
@@ -501,9 +502,16 @@ class SubModularIterative():
         to_select = min(10, len(all_cmp_preds))
         cmp_preds = random.choices(all_cmp_preds, k=to_select)
         test_case['cmp_preds'] = cmp_preds
+        
+        table = test_case['table']
+        sample_ratio = 0.01
+        logging.info(f'Sampling {table} with ratio {sample_ratio} ...')
+        sample_table = cp.algs.sample.create_sample(
+            self.connection, table, sample_ratio)
+        test_case['table'] = sample_table
     
         total_timesteps = 50
-        print(f'Iterating for {total_timesteps} steps ...')
+        logging.info(f'Iterating for {total_timesteps} steps ...')
         env = cp.algs.rl.PickingEnv(
             self.connection, **test_case, 
             all_preds=self.all_preds,
