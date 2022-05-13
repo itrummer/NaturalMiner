@@ -276,7 +276,7 @@ class PickingEnv(gym.Env):
         rewards = []
         for cmp_pred, gen in zip(self.cmp_preds, self.s_gens):
             text, conf = gen.generate(self.cur_facts)
-            prior_reward = self.prior_best[cmp_pred][1]
+            prior_reward = self.prior_best[cmp_pred]
             this_reward = self.s_eval.evaluate(text)
             reward = max(prior_reward, this_reward)
             rewards.append(reward)

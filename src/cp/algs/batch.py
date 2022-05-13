@@ -9,6 +9,7 @@ import cp.algs.sample
 import cp.cache.multi
 import cp.sql.query
 import cp.text.fact
+import dataclasses
 import gym
 from gym import spaces
 import logging
@@ -18,6 +19,12 @@ from sklearn.cluster import KMeans
 from stable_baselines3 import A2C
 import statistics
 from cp.sql.pred import pred_sql
+
+
+@dataclasses.dataclass(frozen=True)
+class EvaluationResult():
+    summary: str
+    quality: float
 
 
 def eval_solution(connection, batch, all_preds, solution):
@@ -74,7 +81,7 @@ def eval_solution(connection, batch, all_preds, solution):
         logging.info('Evaluating summary quality ...')
         scores = s_eval.evaluate_batch(sums)
         for cmp_pred, d_sum, score in zip(cmp_preds, sums, scores):
-            result[cmp_pred] = (d_sum, score)
+            result[cmp_pred] = EvaluationResult(d_sum, score)
     
     return result
 
@@ -135,8 +142,9 @@ class IterativeClusters():
         self.connection = connection
         self.cmp_preds = batch['predicates']
         self.dim_preds = dim_preds
-        eval_empty = {cmp:(None, -10) for cmp in self.cmp_preds}
-        self.clusters = {0:(batch, eval_empty)}
+        empty_eval = EvaluationResult(None, -10)
+        cmp_to_eval = {cmp:empty_eval for cmp in self.cmp_preds}
+        self.clusters = {0:(batch, cmp_to_eval)}
 
     def iterate(self):
         """ Performs one iteration. """
@@ -192,7 +200,7 @@ class IterativeClusters():
         all_scores = []
         for _, evaluations in self.clusters.values():
             logging.info(evaluations)
-            all_scores += [e[1] for e in evaluations]
+            all_scores += [e.quality for e in evaluations]
         avg_score = statistics.mean(all_scores)
         logging.info(f'Avg. summary quality: {avg_score}')
 
@@ -222,11 +230,12 @@ class IterativeClusters():
         test_case = batch['general'].copy()
         test_case['cmp_preds'] = cmp_preds
         
+        prior_best = {p:e.quality for p, e in s_eval.items()}
         env = cp.algs.rl.PickingEnv(
             self.connection, **test_case, 
             all_preds=self.dim_preds,
             c_type='proactive', cluster=True,
-            prior_best=s_eval)
+            prior_best=prior_best)
         model = A2C(
             'MlpPolicy', env, verbose=True, 
             gamma=1.0, normalize_advantage=True)
@@ -257,19 +266,19 @@ class IterativeClusters():
         _, s_eval = cluster
         # bad_items = [i for i, (_, q) in s_eval.items() if q < 0]
         # return len(bad_items)
-        return - statistics.mean([v[1] for v in s_eval.values()])
+        return - statistics.mean([v.quality for v in s_eval.values()])
     
-    def _priority_count(self, b_e):
+    def _priority_count(self, cluster):
         """ Evaluates priority for splitting batch using count of bad items.
         
         Args:
-            b_e: batch with associated evaluation
+            cluster: batch with associated evaluation
         
         Returns:
             splitting priority (high priority means likely split)
         """
-        _, s_eval = b_e
-        bad_items = [i for i, (_, q) in s_eval.items() if q < 0]
+        _, s_eval = cluster
+        bad_items = [i for i, e in s_eval.items() if e.quality < 0]
         return len(bad_items)
 
     def _prune_summaries(self, eval_1, eval_2):
@@ -283,12 +292,12 @@ class IterativeClusters():
             dictionary mapping predicates to best found evaluation
         """
         pruned = {}
-        for cmp, (sum_1, score_1) in eval_1.items():
-            sum_2, score_2 = eval_2[cmp]
-            if score_1 >= score_2:
-                pruned[cmp] = score_1, sum_1
+        for cmp, e_1 in eval_1.items():
+            e_2 = eval_2[cmp]
+            if e_1.quality >= e_2.quality:
+                pruned[cmp] = e_1
             else:
-                pruned[cmp] = score_2, sum_2
+                pruned[cmp] = e_2
         return pruned
 
     def _select(self):
@@ -298,7 +307,8 @@ class IterativeClusters():
             index of batch to split
         """
         cluster_ids = self.clusters.keys()
-        return max(cluster_ids, key=lambda c_id:
+        return max(cluster_ids, 
+                   key=lambda c_id:
                    self._priority_avg(
                        self.clusters[c_id]))
     
@@ -312,8 +322,8 @@ class IterativeClusters():
             list of two batches splitting the input batch
         """
         batch, eval_s = b_e
-        preds_1 = [p for p, (_, q) in eval_s.items() if q < 0]
-        preds_2 = [p for p, (_, q) in eval_s.items() if q >= 0]
+        preds_1 = [p for p, e in eval_s.items() if e.quality < 0]
+        preds_2 = [p for p, e in eval_s.items() if e.quality >= 0]
         
         split_batches = []
         for preds in [preds_1, preds_2]:
