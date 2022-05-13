@@ -28,11 +28,13 @@ def log_ic_results(nr_facts, nr_preds, method, avg_s, ic, out_file):
         ic: iterative cluster processor
         out_file: write output to this file
     """
-    for c_id, (_, b_eval) in ic.id_to_be.items():
-        for pred, (d_sum, reward) in b_eval.items():
+    for c_id, (_, b_evals) in ic.clusters.items():
+        for pred, b_eval in b_evals.items():
+            summary = b_eval.summary
+            quality = b_eval.quality
             out_file.write(
                 f'{nr_facts},{nr_preds},{method},{c_id},' +\
-                f'{avg_s},"{pred}","{d_sum}",{reward}\n')
+                f'{avg_s},"{pred}","{summary}",{quality}\n')
 
 
 def log_si_results(nr_facts, nr_preds, method, iteration, avg_s, si, out_file):
