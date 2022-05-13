@@ -115,7 +115,7 @@ if __name__ == '__main__':
                     si = cp.algs.batch.SubModularIterative(
                         connection, batch, all_preds)
                     
-                    for i in range(3):
+                    for i in range(6):
                         start_s = time.time()
                         logging.info(f'Starting batch iteration {i}')
                         si.iterate()
