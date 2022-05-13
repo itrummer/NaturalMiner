@@ -224,7 +224,7 @@ class IterativeClusters():
         batch, s_eval = cluster
         batch_cmp_preds = batch['predicates']
 
-        to_select = min(3, len(batch_cmp_preds))
+        to_select = min(5, len(batch_cmp_preds))
         cmp_preds = random.choices(batch_cmp_preds, k=to_select)
         test_case = batch['general'].copy()
         test_case['cmp_preds'] = cmp_preds
@@ -238,7 +238,7 @@ class IterativeClusters():
         model = A2C(
             'MlpPolicy', env, verbose=True, 
             gamma=1.0, normalize_advantage=True)
-        model.learn(total_timesteps=1)
+        model.learn(total_timesteps=50)
         
         if env.props_to_rewards:
             best = sorted(
