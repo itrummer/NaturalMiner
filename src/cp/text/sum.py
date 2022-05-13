@@ -139,12 +139,12 @@ class SumEvaluator():
         
         results = []
         for batch in batches:
-            batch_results = self.model(batch, batch_size=8)
-            for idx, text in enumerate(batch):
-                if not text:
-                    batch_results[idx] = -10
-            results += batch_results
-        return [self._extract_score(r) for r in results]
+            results += self.model(batch, batch_size=8)
+        scores = [self._extract_score(r) for r in results]
+        for idx, text in enumerate(texts):
+            if not text:
+                scores[idx] = -1
+        return scores
     
     def statistics(self):
         """ Returns performance statistics. 
