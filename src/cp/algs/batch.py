@@ -59,7 +59,7 @@ def eval_solution(connection, batch, all_preds, solution):
         s_eval = cp.text.sum.SumEvaluator()
         
         logging.info('Generating text summaries ...')
-        cmp_sums = []
+        sums = []
         for cmp_pred in cmp_preds:
             q_engine = cp.sql.query.QueryEngine(
                 connection, table, cmp_pred, cache)
@@ -70,12 +70,12 @@ def eval_solution(connection, batch, all_preds, solution):
             sum_tmp = solution[cmp_pred]
             sum_facts = [cp.text.fact.Fact.from_props(p) for p in sum_tmp]
             d_sum, _ = s_gen.generate(sum_facts)
-            cmp_sums += [(cmp_pred, d_sum)]
+            sums += [d_sum]
 
         logging.info('Evaluating summary quality ...')
-        for cmp_pred, d_sum in cmp_sums:
-            quality = s_eval.evaluate(d_sum)
-            result[cmp_pred] = (d_sum, quality)
+        scores = s_eval.evaluate_batch(sums)
+        for cmp_pred, d_sum, score in zip(cmp_preds, sums, scores):
+            result[cmp_pred] = (d_sum, score)
     
     return result
 

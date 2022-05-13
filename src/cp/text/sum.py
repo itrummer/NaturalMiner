@@ -122,6 +122,18 @@ class SumEvaluator():
         self.eval_s += time.time() - start_s
         return reward
     
+    def evaluate_batch(self, texts):
+        """ Evaluate batch of summaries.
+        
+        Args:
+            texts: list of text summaries to evaluate
+        
+        Returns:
+            list of associated scores
+        """
+        results = self.model(texts, batch_size=4)
+        return [self._extract_score(r) for r in results]
+    
     def statistics(self):
         """ Returns performance statistics. 
         
@@ -151,17 +163,29 @@ class SumEvaluator():
             quality value between -1 (or 0) and +1 (higher is better)
         """
         if self.goal == 0:
-            sent = self.model(text)[0]
-            label = sent['label']
-            score = sent['score']
+            result = self.model(text)
+        elif self.goal == 1:
+            result = self.model(
+                text, [self.label])
+        
+        return self._extract_score(result)
+    
+    def _extract_score(self, result):
+        """ Extract scores from model results.
+        
+        Args:
+            result: result of model evaluation
+        
+        Returns:
+            score representing text quality
+        """
+        if self.goal == 0:
+            label = result['label']
+            score = result['score']
             if label == 'POSITIVE':
                 return score
             else:
                 return -score
-
+        
         elif self.goal == 1:
-            result = self.model(text, [self.label])
             return result['scores'][0]
-
-        else:
-            raise ValueError(f'Error - unknown goal code: {self.goal}')
