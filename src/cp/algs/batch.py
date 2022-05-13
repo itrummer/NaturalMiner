@@ -191,6 +191,7 @@ class IterativeClusters():
         """ Logs statistics on quality of generated summaries. """
         all_scores = []
         for _, evaluations in self.clusters.values():
+            logging.info(evaluations)
             all_scores += [e[1] for e in evaluations]
         avg_score = statistics.mean(all_scores)
         logging.info(f'Avg. summary quality: {avg_score}')
@@ -229,7 +230,7 @@ class IterativeClusters():
         model = A2C(
             'MlpPolicy', env, verbose=True, 
             gamma=1.0, normalize_advantage=True)
-        model.learn(total_timesteps=50)
+        model.learn(total_timesteps=1)
         
         if env.props_to_rewards:
             best = sorted(
