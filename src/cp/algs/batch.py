@@ -181,7 +181,7 @@ class IterativeClusters():
         """
         batch, eval_s = cluster
         nr_preds = len(eval_s)
-        preds_by_qual = sorted(eval_s.keys(), key=lambda p:eval_s[p][1])
+        preds_by_qual = sorted(eval_s.keys(), key=lambda p:eval_s[p].quality)
 
         split_clusters = []
         middle = round(nr_preds/2)
