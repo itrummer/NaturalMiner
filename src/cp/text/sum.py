@@ -132,7 +132,13 @@ class SumEvaluator():
         Returns:
             list of associated scores
         """
-        results = self.model(texts, batch_size=4)
+        nr_texts = len(texts)
+        n = 1000
+        batches = [texts[i:i+n] for i in range(0, nr_texts, n)]
+        
+        results = []
+        for batch in batches:
+            results += self.model(batch, batch_size=8)
         return [self._extract_score(r) for r in results]
     
     def statistics(self):
