@@ -120,7 +120,8 @@ if __name__ == '__main__':
                         logging.info(f'Starting batch iteration {i}')
                         si.iterate()
                         q_values = [v[1] for v in si.best_sums.values()]
-                        logging.info(f'Average quality: {statistics.mean(q_values)}')
+                        mean_quality = statistics.mean(q_values)
+                        logging.info(f'Average quality: {mean_quality}')
                         total_s = time.time() - start_s
                         avg_s = total_s / nr_items
                         log_si_results(
