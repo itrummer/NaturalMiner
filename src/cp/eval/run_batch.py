@@ -112,18 +112,24 @@ if __name__ == '__main__':
                             # break
     
                     nr_items = len(batch['predicates'])
-                    si = cp.algs.batch.SubModularIterative(
+                    ic = cp.algs.batch.IterativeClusters(
                         connection, batch, all_preds)
+                    # si = cp.algs.batch.SubModularIterative(
+                        # connection, batch, all_preds)
                     
                     for i in range(6):
                         start_s = time.time()
                         logging.info(f'Starting batch iteration {i}')
-                        si.iterate()
-                        q_values = [v[1] for v in si.best_sums.values()]
-                        mean_quality = statistics.mean(q_values)
-                        logging.info(f'Average quality: {mean_quality}')
+                        ic.iterate()
+                        # si.iterate()
+                        # q_values = [v[1] for v in si.best_sums.values()]
+                        # mean_quality = statistics.mean(q_values)
+                        # logging.info(f'Average quality: {mean_quality}')
                         total_s = time.time() - start_s
                         avg_s = total_s / nr_items
-                        log_si_results(
-                            nr_facts, nr_preds, 'si', 
-                            i, avg_s, si, out_file)
+                        log_ic_results(
+                            nr_facts, nr_preds, 'ic', 
+                            avg_s, ic, out_file)
+                        # log_si_results(
+                            # nr_facts, nr_preds, 'si', 
+                            # i, avg_s, si, out_file)

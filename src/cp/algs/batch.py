@@ -101,14 +101,16 @@ def simple_batch(connection, batch, all_preds):
 
     env = cp.algs.rl.PickingEnv(
         connection, **test_case, all_preds=all_preds,
-        c_type='empty', cluster=True)
+        c_type='proactive', cluster=True)
     model = A2C(
         'MlpPolicy', env, verbose=True, 
         gamma=1.0, normalize_advantage=True)
     model.learn(total_timesteps=200)
     
     if env.props_to_rewards:
-        best = sorted(env.props_to_rewards.items(), key=lambda i:i[1])[-1]
+        best = sorted(
+            env.props_to_rewards.items(), 
+            key=lambda i:i[1])[-1]
         best_props = best[0]
     else:
         nr_facts = test_case['nr_facts']
@@ -122,59 +124,74 @@ def simple_batch(connection, batch, all_preds):
 class IterativeClusters():
     """ Iteratively divides items into clusters to generate summaries. """
     
-    def __init__(self, connection, batch, all_preds):
+    def __init__(self, connection, batch, dim_preds):
         """ Initialize for given problem.
         
         Args:
             connection: connection to database
             batch: batch containing all items
-            all_preds: all predicates on dimensions
+            dim_preds: all predicates on dimensions
         """
         self.connection = connection
-        self.all_preds = all_preds
-        solution = simple_batch(connection, batch, all_preds)
-        s_eval = eval_solution(connection, batch, all_preds, solution)
-        self.id_to_be = {0:(batch, s_eval)}
+        self.cmp_preds = batch['predicates']
+        self.dim_preds = dim_preds
+        eval_empty = {cmp:(None, -10) for cmp in self.cmp_preds}
+        self.clusters = {0:(batch, eval_empty)}
 
     def iterate(self):
         """ Performs one iteration. """
-        logging.debug(f'Batches before iteration: {self.id_to_be}')
+        logging.info('Splitting cluster ...')
         to_split_idx = self._select()
-        to_split = self.id_to_be[to_split_idx]
+        to_split = self.clusters[to_split_idx]
         split = self._even_split(to_split)
-        del self.id_to_be[to_split_idx]
+        del self.clusters[to_split_idx]
         
-        for b in split:
-            solution = simple_batch(self.connection, b, self.all_preds)
-            s_eval = eval_solution(self.connection, b, self.all_preds, solution)
-            b_id = self._next_ID()
-            self.id_to_be[b_id] = b, s_eval
+        logging.info('Summarizing splits ...')
+        for cluster in split:
+            sketch = self._pick_sketch(cluster)
+            batch, prior_eval = cluster
+            new_eval = eval_solution(
+                self.connection, batch, 
+                self.all_preds, sketch)
+            
+            cluster_id = self._next_ID()
+            combined_eval = self._prune_summaries(prior_eval, new_eval)
+            self.clusters[cluster_id] = batch, combined_eval
         
-        for b_id, (b, b_eval) in self.id_to_be.items():
-            logging.debug(f'Cluster {b_id}: {b}, {b_eval}')
+        self._log_statistics()
 
-    def _even_split(self, b_e):
+    def _even_split(self, cluster):
         """ Splits items, sorted by text quality, evenly into two halves.
         
         Args:
-            b_e: batch with associated evaluation
+            cluster: batch with associated evaluation
         
         Returns:
-            list of two batches splitting the input batch
+            list containing two clusters resulting from the split
         """
-        batch, eval_s = b_e
+        batch, eval_s = cluster
         nr_preds = len(eval_s)
         preds_by_qual = sorted(eval_s.keys(), key=lambda p:eval_s[p][1])
-                
-        split_batches = []
+
+        split_clusters = []
         middle = round(nr_preds/2)
         for s in [slice(0, middle), slice(middle, nr_preds)]:
             cmp_preds = preds_by_qual[s]
             split_batch = batch.copy()
             split_batch['predicates'] = cmp_preds
-            split_batches.append(split_batch)
+            split_eval = {p:eval_s[p] for p in cmp_preds}
+            split_cluster = split_batch, split_eval
+            split_clusters.append(split_cluster)
         
-        return split_batches
+        return split_clusters
+
+    def _log_statistics(self):
+        """ Logs statistics on quality of generated summaries. """
+        all_scores = []
+        for _, evaluations in self.clusters.values():
+            all_scores += [e[1] for e in evaluations]
+        avg_score = statistics.mean(all_scores)
+        logging.info(f'Avg. summary quality: {avg_score}')
 
     def _next_ID(self):
         """ Returns next available batch ID.
@@ -185,16 +202,57 @@ class IterativeClusters():
         ids = self.id_to_be.keys()
         return 1+max(ids) if ids else 0
 
-    def _priority_avg(self, b_e):
-        """ Evaluates priority for splitting batch using average quality.
+    def _pick_sketch(self, cluster):
+        """ Simple baseline using same summary template for entire batch.
         
         Args:
-            b_e: batch with associated evaluation
+            cluster: tuple of batch and prior results
+        
+        Returns:
+            best summary sketch
+        """
+        batch, s_eval = cluster
+        batch_cmp_preds = batch['predicates']
+
+        to_select = min(3, len(batch_cmp_preds))
+        cmp_preds = random.choices(batch_cmp_preds, k=to_select)
+        test_case = batch['general'].copy()
+        test_case['cmp_preds'] = cmp_preds
+        prior_best = {p:s_eval[p][1] for p in cmp_preds}
+        
+        env = cp.algs.rl.PickingEnv(
+            self.connection, **test_case, 
+            all_preds=self.dim_preds,
+            c_type='proactive', cluster=True,
+            prior_best=prior_best)
+        model = A2C(
+            'MlpPolicy', env, verbose=True, 
+            gamma=1.0, normalize_advantage=True)
+        model.learn(total_timesteps=200)
+        
+        if env.props_to_rewards:
+            best = sorted(
+                env.props_to_rewards.items(), 
+                key=lambda i:i[1])[-1]
+            best_props = best[0]
+        else:
+            nr_facts = test_case['nr_facts']
+            nr_preds = test_case['nr_preds']
+            fact = cp.text.fact.Fact(nr_preds)
+            best_props = nr_facts * [fact]
+        
+        return best_props
+
+    def _priority_avg(self, cluster):
+        """ Evaluates priority for splitting cluster using average quality.
+        
+        Args:
+            cluster: tuple of batch and associated evaluations
         
         Returns:
             splitting priority (high priority means likely split)
         """
-        _, s_eval = b_e
+        _, s_eval = cluster
         # bad_items = [i for i, (_, q) in s_eval.items() if q < 0]
         # return len(bad_items)
         return - statistics.mean([v[1] for v in s_eval.values()])
@@ -212,16 +270,35 @@ class IterativeClusters():
         bad_items = [i for i, (_, q) in s_eval.items() if q < 0]
         return len(bad_items)
 
+    def _prune_summaries(self, eval_1, eval_2):
+        """ Prune evaluated summaries and keep only the best. 
+        
+        Args:
+            eval_1: dictionary mapping predicates to evaluated summaries
+            eval_2: second dictionary mapping predicates to evaluations
+        
+        Returns:
+            dictionary mapping predicates to best found evaluation
+        """
+        pruned = {}
+        for cmp, (sum_1, score_1) in eval_1.items():
+            sum_2, score_2 = eval_2[cmp]
+            if score_1 >= score_2:
+                pruned[cmp] = score_1, sum_1
+            else:
+                pruned[cmp] = score_2, sum_2
+        return pruned
+
     def _select(self):
         """ Select one of current batches to split. 
         
         Returns:
             index of batch to split
         """
-        ids = self.id_to_be.keys()
-        return max(ids, key=lambda b_id:
+        cluster_ids = self.clusters.keys()
+        return max(cluster_ids, key=lambda c_id:
                    self._priority_avg(
-                       self.id_to_be[b_id]))
+                       self.clusters[c_id]))
     
     def _signum_split(self, b_e):
         """ Splits items based on the signum of text quality.
