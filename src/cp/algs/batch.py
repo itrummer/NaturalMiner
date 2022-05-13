@@ -199,7 +199,6 @@ class IterativeClusters():
         """ Logs statistics on quality of generated summaries. """
         all_scores = []
         for _, evaluations in self.clusters.values():
-            logging.info(evaluations)
             all_scores += [e.quality for e in evaluations.values()]
         avg_score = statistics.mean(all_scores)
         logging.info(f'Avg. summary quality: {avg_score}')
