@@ -163,7 +163,7 @@ class SumEvaluator():
             quality value between -1 (or 0) and +1 (higher is better)
         """
         if self.goal == 0:
-            result = self.model(text)
+            result = self.model(text)[0]
         elif self.goal == 1:
             result = self.model(
                 text, [self.label])
