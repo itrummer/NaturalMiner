@@ -504,7 +504,7 @@ class SubModularIterative():
         test_case['cmp_preds'] = cmp_preds
         
         table = test_case['table']
-        sample_ratio = 0.01
+        sample_ratio = 0.1
         logging.info(f'Sampling {table} with ratio {sample_ratio} ...')
         sample_table = cp.algs.sample.create_sample(
             self.connection, table, sample_ratio)
