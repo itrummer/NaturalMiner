@@ -201,7 +201,7 @@ class IterativeClusters():
         Returns:
             integer representing next batch ID
         """
-        ids = self.id_to_be.keys()
+        ids = self.clusters.keys()
         return 1+max(ids) if ids else 0
 
     def _pick_sketch(self, cluster):
