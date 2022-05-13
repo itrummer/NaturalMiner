@@ -152,7 +152,7 @@ class IterativeClusters():
             batch, prior_eval = cluster
             new_eval = eval_solution(
                 self.connection, batch, 
-                self.all_preds, sketch)
+                self.dim_preds, sketch)
             
             cluster_id = self._next_ID()
             combined_eval = self._prune_summaries(prior_eval, new_eval)
@@ -227,7 +227,7 @@ class IterativeClusters():
         model = A2C(
             'MlpPolicy', env, verbose=True, 
             gamma=1.0, normalize_advantage=True)
-        model.learn(total_timesteps=200)
+        model.learn(total_timesteps=50)
         
         if env.props_to_rewards:
             best = sorted(
