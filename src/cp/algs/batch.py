@@ -218,13 +218,12 @@ class IterativeClusters():
         cmp_preds = random.choices(batch_cmp_preds, k=to_select)
         test_case = batch['general'].copy()
         test_case['cmp_preds'] = cmp_preds
-        prior_best = {p:s_eval[p][1] for p in cmp_preds}
         
         env = cp.algs.rl.PickingEnv(
             self.connection, **test_case, 
             all_preds=self.dim_preds,
             c_type='proactive', cluster=True,
-            prior_best=prior_best)
+            prior_best=s_eval)
         model = A2C(
             'MlpPolicy', env, verbose=True, 
             gamma=1.0, normalize_advantage=True)
