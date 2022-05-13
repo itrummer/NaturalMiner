@@ -154,7 +154,7 @@ class IterativeClusters():
             new_eval = eval_solution(
                 self.connection, batch, 
                 self.dim_preds, 
-                {sketch:p for p in cmp_preds})
+                {p:sketch for p in cmp_preds})
             
             cluster_id = self._next_ID()
             combined_eval = self._prune_summaries(prior_eval, new_eval)
