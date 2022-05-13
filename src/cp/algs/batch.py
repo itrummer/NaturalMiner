@@ -150,9 +150,11 @@ class IterativeClusters():
         for cluster in split:
             sketch = self._pick_sketch(cluster)
             batch, prior_eval = cluster
+            cmp_preds = batch['predicates']
             new_eval = eval_solution(
                 self.connection, batch, 
-                self.dim_preds, sketch)
+                self.dim_preds, 
+                {sketch:p for p in cmp_preds})
             
             cluster_id = self._next_ID()
             combined_eval = self._prune_summaries(prior_eval, new_eval)
