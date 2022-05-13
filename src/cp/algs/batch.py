@@ -71,11 +71,6 @@ def eval_solution(connection, batch, all_preds, solution):
             d_sum, _ = s_gen.generate(sum_facts)
             sums += [d_sum]
 
-        # TODO: remove later
-        with open('sums.txt', 'w') as file:
-            for d_sum in sums:
-                file.write(d_sum + '\n')
-
         logging.info('Evaluating summary quality ...')
         scores = s_eval.evaluate_batch(sums)
         for cmp_pred, d_sum, score in zip(cmp_preds, sums, scores):
