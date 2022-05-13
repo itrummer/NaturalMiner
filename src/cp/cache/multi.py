@@ -26,7 +26,8 @@ class MultiItemCache(AggCache):
         """
         self.q_to_r = {}
         with connection.cursor() as cursor:
-            for props in sum_tmp:
+            for f_idx, props in enumerate(sum_tmp):
+                logging.info(f'Evaluating fact {f_idx} ...')
                 q_parts = [f'select {cmp_col} as cmp_col,']
                 fact = Fact.from_props(props)
                 agg_idx = fact.get_agg()
