@@ -96,7 +96,7 @@ class PickingEnv(gym.Env):
                  degree, max_steps, preamble, dims_tmp, 
                  aggs_txt, all_preds, c_type, cluster,
                  sum_eval=SumEvaluator(),
-                 prior_best=defaultdict(lambda _:-1)):
+                 prior_best={}):
         """ Read database to initialize environment. 
         
         Args:
@@ -276,13 +276,16 @@ class PickingEnv(gym.Env):
         rewards = []
         for cmp_pred, gen in zip(self.cmp_preds, self.s_gens):
             text, conf = gen.generate(self.cur_facts)
-            prior_reward = self.prior_best[cmp_pred]
-            this_reward = self.s_eval.evaluate(text)
-            reward = max(prior_reward, this_reward)
+            this_quality = self.s_eval.evaluate(text)
+            prior_quality = self.prior_best.get(cmp_pred)
+            reward = this_quality
+            if prior_quality is not None:
+                reward -= prior_quality
+                reward = max(reward, 0)
             rewards.append(reward)
             logging.debug(
-                f'Reward {this_reward} for {text}; ' +\
-                f'prior reward: {prior_reward}')
+                f'Reward: {reward} for {text}; ' +\
+                f'prior quality: {prior_quality}')
             if conf is not None:
                 confs.append(conf)
         
