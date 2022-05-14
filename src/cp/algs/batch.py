@@ -611,12 +611,12 @@ class SubModularIterative():
         prior_quality = {p:e.quality for p, e in prior_evals.items()}
         logging.info(f'Prior evaluation results: {prior_evals}')
         
-        # table = test_case['table']
-        # sample_ratio = 0.1
-        # logging.info(f'Sampling {table} with ratio {sample_ratio} ...')
-        # sample_table = cp.algs.sample.create_sample(
-            # self.connection, table, sample_ratio)
-        # test_case['table'] = sample_table
+        table = test_case['table']
+        sample_ratio = 0.01
+        logging.info(f'Sampling {table} with ratio {sample_ratio} ...')
+        sample_table = cp.algs.sample.create_sample(
+            self.connection, table, sample_ratio)
+        test_case['table'] = sample_table
     
         total_timesteps = 50
         logging.info(f'Iterating for {total_timesteps} steps ...')
