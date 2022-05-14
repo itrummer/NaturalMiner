@@ -230,6 +230,7 @@ class IterativeClusters():
         test_case['cmp_preds'] = cmp_preds
         
         prior_best = {p:e.quality for p, e in s_eval.items()}
+        logging.info(f'Best prior rewards: {prior_best}')
         env = cp.algs.rl.PickingEnv(
             self.connection, **test_case, 
             all_preds=self.dim_preds,
@@ -244,8 +245,10 @@ class IterativeClusters():
             best = sorted(
                 env.props_to_rewards.items(), 
                 key=lambda i:i[1])[-1]
+            logging.info(f'Best sketch: {best}')
             best_props = best[0]
         else:
+            logging.info('No valid solution produced')
             nr_facts = test_case['nr_facts']
             nr_preds = test_case['nr_preds']
             fact = cp.text.fact.Fact(nr_preds)
