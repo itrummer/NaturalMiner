@@ -553,7 +553,8 @@ class SubModularIterative():
         self.batch = batch
         self.all_preds = all_preds
         self.all_cmp_preds = batch['predicates']
-        self.best_sums = {p:('', -1) for p in self.all_cmp_preds}
+        empty_result = EvaluationResult('', -1)
+        self.best_sums = {p:empty_result for p in self.all_cmp_preds}
 
     def iterate(self):
         """ Performs one iteration to improve summary quality. 
@@ -570,14 +571,14 @@ class SubModularIterative():
             cmp_pred:best_props for 
             cmp_pred in self.all_cmp_preds}
         logging.info('Evaluating sketch ...')
-        s_eval = eval_solution(
+        s_evals = eval_solution(
             self.connection, self.batch, 
             self.all_preds, solution)
         logging.info('Pruning sketches ...')
-        for cmp_pred, (d_sum, quality) in s_eval.items():
-            _, prior_quality = self.best_sums[cmp_pred]
-            if prior_quality < quality:
-                self.best_sums[cmp_pred] = d_sum, quality
+        for cmp_pred, new_eval in s_evals.items():
+            prior_eval = self.best_sums[cmp_pred]
+            if prior_eval.quality < new_eval.quality:
+                self.best_sums[cmp_pred] = new_eval
     
     def _pick_sketch(self):
         """ Pick a summary sketch that is optimally complementary.
@@ -596,16 +597,19 @@ class SubModularIterative():
         if not all_cmp_preds:
             return {}
     
-        to_select = min(10, len(all_cmp_preds))
+        to_select = min(3, len(all_cmp_preds))
         cmp_preds = random.choices(all_cmp_preds, k=to_select)
         test_case['cmp_preds'] = cmp_preds
+        prior_evals = {p:self.best_sums[p] for p in cmp_preds}
+        prior_quality = {p:e.quality for p, e in prior_evals.items()}
+        logging.info(f'Prior evaluation results: {prior_evals}')
         
-        table = test_case['table']
-        sample_ratio = 0.1
-        logging.info(f'Sampling {table} with ratio {sample_ratio} ...')
-        sample_table = cp.algs.sample.create_sample(
-            self.connection, table, sample_ratio)
-        test_case['table'] = sample_table
+        # table = test_case['table']
+        # sample_ratio = 0.1
+        # logging.info(f'Sampling {table} with ratio {sample_ratio} ...')
+        # sample_table = cp.algs.sample.create_sample(
+            # self.connection, table, sample_ratio)
+        # test_case['table'] = sample_table
     
         total_timesteps = 50
         logging.info(f'Iterating for {total_timesteps} steps ...')
@@ -613,7 +617,7 @@ class SubModularIterative():
             self.connection, **test_case, 
             all_preds=self.all_preds,
             c_type='proactive', cluster=True,
-            prior_best=self.best_sums)
+            prior_best=prior_quality)
         model = A2C(
             'MlpPolicy', env, verbose=True, 
             gamma=1.0, normalize_advantage=True)
@@ -621,8 +625,10 @@ class SubModularIterative():
         
         if env.props_to_rewards:
             best = sorted(env.props_to_rewards.items(), key=lambda i:i[1])[-1]
+            logging.info(f'Best summary: {best}')
             best_props = best[0]
         else:
+            logging.info('No summary found')
             nr_facts = test_case['nr_facts']
             nr_preds = test_case['nr_preds']
             fact = cp.text.fact.Fact(nr_preds)

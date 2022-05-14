@@ -48,10 +48,10 @@ def log_si_results(nr_facts, nr_preds, method, iteration, avg_s, si, out_file):
         si: sub-modular iterative optimizer
         out_file: handle to output file
     """
-    for cmp_pred, (d_sum, quality) in si.best_sums.items():
+    for cmp_pred, s_eval in si.best_sums.items():
         out_file.write(
             f'{nr_facts},{nr_preds},{method},{iteration},' +\
-            f'{avg_s},"{cmp_pred}","{d_sum}",{quality}\n')
+            f'{avg_s},"{cmp_pred}","{s_eval.summary}",{s_eval.quality}\n')
 
 
 if __name__ == '__main__':
@@ -114,24 +114,24 @@ if __name__ == '__main__':
                             # break
     
                     nr_items = len(batch['predicates'])
-                    ic = cp.algs.batch.IterativeClusters(
-                        connection, batch, all_preds)
-                    # si = cp.algs.batch.SubModularIterative(
+                    # ic = cp.algs.batch.IterativeClusters(
                         # connection, batch, all_preds)
+                    si = cp.algs.batch.SubModularIterative(
+                        connection, batch, all_preds)
                     
                     for i in range(6):
                         start_s = time.time()
                         logging.info(f'Starting batch iteration {i}')
-                        ic.iterate()
-                        # si.iterate()
+                        # ic.iterate()
+                        si.iterate()
                         # q_values = [v[1] for v in si.best_sums.values()]
                         # mean_quality = statistics.mean(q_values)
                         # logging.info(f'Average quality: {mean_quality}')
                         total_s = time.time() - start_s
                         avg_s = total_s / nr_items
-                        log_ic_results(
-                            nr_facts, nr_preds, 'ic', 
-                            avg_s, ic, out_file)
-                        # log_si_results(
-                            # nr_facts, nr_preds, 'si', 
-                            # i, avg_s, si, out_file)
+                        # log_ic_results(
+                            # nr_facts, nr_preds, 'ic', 
+                            # avg_s, ic, out_file)
+                        log_si_results(
+                            nr_facts, nr_preds, 'si', 
+                            i, avg_s, si, out_file)
