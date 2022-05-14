@@ -579,6 +579,13 @@ class SubModularIterative():
             prior_eval = self.best_sums[cmp_pred]
             if prior_eval.quality < new_eval.quality:
                 self.best_sums[cmp_pred] = new_eval
+        self._log_statistics()
+    
+    def _log_statistics(self):
+        """ Log statistics on quality of generated summaries. """
+        q_values = [e.quality for e in self.best_sums.values()]
+        mean_quality = statistics.mean(q_values)
+        logging.info(f'Average quality: {mean_quality}')
     
     def _pick_sketch(self):
         """ Pick a summary sketch that is optimally complementary.
