@@ -229,13 +229,14 @@ class IterativeClusters():
         test_case = batch['general'].copy()
         test_case['cmp_preds'] = cmp_preds
         
-        prior_best = {p:e.quality for p, e in s_eval.items()}
-        logging.info(f'Best prior rewards: {prior_best}')
+        prior_results = {p:e for p, e in s_eval.items() if p in cmp_preds}
+        logging.info(f'Best prior rewards: {prior_results}')
+        prior_quality = {p:e.quality for p, e in prior_results.items()}
         env = cp.algs.rl.PickingEnv(
             self.connection, **test_case, 
             all_preds=self.dim_preds,
             c_type='proactive', cluster=True,
-            prior_best=prior_best)
+            prior_best=prior_quality)
         model = A2C(
             'MlpPolicy', env, verbose=True, 
             gamma=1.0, normalize_advantage=True)
