@@ -90,28 +90,6 @@ if __name__ == '__main__':
                         (1, 1), (1, 2), (1, 3),]:
                     batch['general']['nr_facts'] = nr_facts
                     batch['general']['nr_preds'] = nr_preds
-                    
-                    # batch_start_s = time.time()
-                    # for cmp_pred in batch['predicates']:
-                        # test_case = batch['general'].copy()
-                        # test_case['cmp_pred'] = cmp_pred
-                        #
-                        # start_s = time.time()
-                        # sampler = cp.algs.sample.Sampler(
-                            # connection, test_case, all_preds, 
-                            # 0.01, 5, 'proactive')
-                        # text_to_reward, _ = sampler.run_sampling()
-                        # total_s = time.time() - start_s
-                        #
-                        # reward = max(text_to_reward.values())
-                        # text = max(text_to_reward.keys(), 
-                            # key=lambda k:text_to_reward[k])
-                        # out_file.write(
-                            # f'{nr_facts},{nr_preds},sample,0,{total_s},' +\
-                            # f'"{cmp_pred}","{text}",{reward}\n')
-                            #
-                        # if time.time() - batch_start_s > 14400:
-                            # break
     
                     nr_items = len(batch['predicates'])
                     # ic = cp.algs.batch.IterativeClusters(
@@ -119,15 +97,13 @@ if __name__ == '__main__':
                     si = cp.algs.batch.SubModularIterative(
                         connection, batch, all_preds)
                     
-                    for i in range(6):
-                        start_s = time.time()
+                    si_start_s = time.time()
+                    for i in range(5):
+                        iteration_start_s = time.time()
                         logging.info(f'Starting batch iteration {i}')
                         # ic.iterate()
                         si.iterate()
-                        # q_values = [v[1] for v in si.best_sums.values()]
-                        # mean_quality = statistics.mean(q_values)
-                        # logging.info(f'Average quality: {mean_quality}')
-                        total_s = time.time() - start_s
+                        total_s = time.time() - iteration_start_s
                         avg_s = total_s / nr_items
                         # log_ic_results(
                             # nr_facts, nr_preds, 'ic', 
@@ -135,3 +111,26 @@ if __name__ == '__main__':
                         log_si_results(
                             nr_facts, nr_preds, 'si', 
                             i, avg_s, si, out_file)
+                    si_total_s = time.time() - si_start_s
+                    
+                    sample_start_s = time.time()
+                    for cmp_pred in batch['predicates']:
+                        test_case = batch['general'].copy()
+                        test_case['cmp_pred'] = cmp_pred
+                        
+                        item_start_s = time.time()
+                        sampler = cp.algs.sample.Sampler(
+                            connection, test_case, all_preds, 
+                            0.01, 5, 'proactive')
+                        text_to_reward, _ = sampler.run_sampling()
+                        item_total_s = time.time() - item_start_s
+                        
+                        reward = max(text_to_reward.values())
+                        text = max(text_to_reward.keys(), 
+                            key=lambda k:text_to_reward[k])
+                        out_file.write(
+                            f'{nr_facts},{nr_preds},sample,0,{total_s},' +\
+                            f'"{cmp_pred}","{text}",{reward}\n')
+                            
+                        if time.time() - sample_start_s > si_total_s:
+                            break
