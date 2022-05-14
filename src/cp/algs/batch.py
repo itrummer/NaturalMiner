@@ -604,21 +604,21 @@ class SubModularIterative():
         if not all_cmp_preds:
             return {}
     
-        to_select = min(3, len(all_cmp_preds))
+        to_select = min(5, len(all_cmp_preds))
         cmp_preds = random.choices(all_cmp_preds, k=to_select)
         test_case['cmp_preds'] = cmp_preds
         prior_evals = {p:self.best_sums[p] for p in cmp_preds}
         prior_quality = {p:e.quality for p, e in prior_evals.items()}
         logging.info(f'Prior evaluation results: {prior_evals}')
         
-        table = test_case['table']
-        sample_ratio = 0.01
-        logging.info(f'Sampling {table} with ratio {sample_ratio} ...')
-        sample_table = cp.algs.sample.create_sample(
-            self.connection, table, sample_ratio)
-        test_case['table'] = sample_table
+        # table = test_case['table']
+        # sample_ratio = 0.01
+        # logging.info(f'Sampling {table} with ratio {sample_ratio} ...')
+        # sample_table = cp.algs.sample.create_sample(
+            # self.connection, table, sample_ratio)
+        # test_case['table'] = sample_table
     
-        total_timesteps = 50
+        total_timesteps = 200
         logging.info(f'Iterating for {total_timesteps} steps ...')
         env = cp.algs.rl.PickingEnv(
             self.connection, **test_case, 
