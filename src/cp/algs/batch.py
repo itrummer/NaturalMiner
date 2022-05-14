@@ -159,6 +159,8 @@ class IterativeClusters():
             sketch = self._pick_sketch(cluster)
             batch, prior_eval = cluster
             cmp_preds = batch['predicates']
+            cluster_size = len(cmp_preds)
+            logging.info(f'Summarizing cluster of size {cluster_size} ...')
             new_eval = eval_solution(
                 self.connection, batch, 
                 self.dim_preds, 
