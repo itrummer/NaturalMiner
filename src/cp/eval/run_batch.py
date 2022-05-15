@@ -126,10 +126,11 @@ if __name__ == '__main__':
                         item_total_s = time.time() - item_start_s
                         
                         reward = max(text_to_reward.values())
+                        reward = max(reward, -1)
                         text = max(text_to_reward.keys(), 
                             key=lambda k:text_to_reward[k])
                         out_file.write(
-                            f'{nr_facts},{nr_preds},sample,0,{total_s},' +\
+                            f'{nr_facts},{nr_preds},sample,0,{item_total_s},' +\
                             f'"{cmp_pred}","{text}",{reward}\n')
                             
                         if time.time() - sample_start_s > si_total_s:
