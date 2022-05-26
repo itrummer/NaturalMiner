@@ -5,6 +5,7 @@ Created on May 4, 2022
 '''
 import json
 import os
+import pandas as pd
 import pathlib
 import psycopg2.extras
 import stable_baselines3
@@ -78,6 +79,11 @@ print('Generated input elements')
 
 if st.button('Generate Summaries!'):
     print('Generating summaries ...')
+    
+    result_cols = ['Predicate', 'Summary', 'Quality']
+    result_df = pd.DataFrame([[]], columns=result_cols)
+    result_table = st.table(result_df)
+    
     for cmp_pred in cmp_preds:
         st.write(f'Characterizing data satisfying predicate "{cmp_pred}" ...')
         dims_col_text = [d.split(':') for d in dims_info]
@@ -120,5 +126,11 @@ if st.button('Generate Summaries!'):
                 b_sum = sorted_sums[-1]
             else:
                 b_sum = ('(No valid summary generated)', -10)
-            st.write(f'Best summary: {b_sum}')
+            
+            new_row = pd.DataFrame([
+                [cmp_pred, b_sum[0], b_sum[1]]], 
+                columns=result_cols)
+            result_table.add_rows(new_row)
+            
+            #st.write(f'Best summary: {b_sum}')
     st.write('All summaries generated!')
