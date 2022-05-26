@@ -81,7 +81,7 @@ if st.button('Generate Summaries!'):
     print('Generating summaries ...')
     
     result_cols = ['Predicate', 'Summary', 'Quality']
-    result_df = pd.DataFrame([[]], columns=result_cols)
+    result_df = pd.DataFrame(columns=result_cols)
     result_table = st.table(result_df)
     
     for cmp_pred in cmp_preds:
