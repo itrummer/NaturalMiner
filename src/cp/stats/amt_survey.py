@@ -28,6 +28,7 @@ if __name__ == '__main__':
     for scenario_short in ['L', 'D', 'F', 'S']:
         labels += [f'{scenario_short}{i}' for i in range(1,6)]
     
+    all_agreements = []
     for scenario in [
         'Among all laptops', 'Among all developers', 
         'Among all flights', 'Among all liquors']:
@@ -43,8 +44,10 @@ if __name__ == '__main__':
             p_votes.append(counts.iloc[1])
             agreement = inter_rater.fleiss_kappa([counts], method='unif')
             agreements.append(agreement)
+            all_agreements.append(agreement)
         print(f'Agreement: {statistics.mean(agreements)}')
     
+    print(f'All agreement: {statistics.mean(all_agreements)}')
     print(v_votes)
     print(p_votes)
     print(labels)
