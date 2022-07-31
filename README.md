@@ -2,11 +2,7 @@
 
 BABOONS optimizes summaries of data sets in natural language, using language models to evaluate data summaries. For instance, users can submit natural language instructions, describing the type of data summary they are seeking. The system then uses language models to compare alternative summaries for the same data set, selecting the summary that most closely matches user instructions.
 
-The implementation can be used in two modes. BABOONS features an interactive demo interface, allowing users to submit natural language instructions live in a GUI. This interface can be found in the `src/cp/interface/gui.py` file and started via `streamlit run src/cp/interface/gui.py` (note that streamlit needs to be installed first). A video demonstrating this interface is available online: 
-
-<p>
-  <iframe width="560" height="315" src="https://www.youtube.com/embed/ssGwZcUkMKA" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-</p>  
+The implementation can be used in two modes. BABOONS features an interactive demo interface, allowing users to submit natural language instructions live in a GUI. This interface can be found in the `src/cp/interface/gui.py` file and started via `streamlit run src/cp/interface/gui.py` (note that streamlit needs to be installed first). A video demonstrating this interface is available [here](https://www.youtube.com/embed/ssGwZcUkMKA). 
 
 The experiments presented in the associated VLDB paper can be reproduced using the files in the `src/cp/eval` folder. Execute `run_single.py` to run experiments that summarize different items separately. Before doing so, make sure to uncomment all relevant baselines in the main function (starting from Line 232). The data to summarize must be stored in a Postgres database. The script takes several input parameters:
 - The name of the Postgres database containing data to summarize.
