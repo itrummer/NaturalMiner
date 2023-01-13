@@ -81,14 +81,14 @@ print('Generated input elements')
 
 
 if st.button('Find Pattern!'):
-    print('Generating summaries ...')
+    print('Searching for pattern ...')
     
-    result_cols = ['Predicate', 'Summary', 'Quality']
+    result_cols = ['Predicate', 'Facts', 'Quality']
     result_df = pd.DataFrame(columns=result_cols, index=range(0))
     result_table = st.table(result_df)
     
     for cmp_pred in cmp_preds:
-        st.write(f'Characterizing data satisfying predicate "{cmp_pred}" ...')
+        st.write(f'Analyzing data satisfying predicate "{cmp_pred}" ...')
         dims_col_text = [d.split(':') for d in dims_info]
         aggs_col_text = [a.split(':') for a in aggs_info]
         t = {
@@ -135,5 +135,4 @@ if st.button('Find Pattern!'):
                 columns=result_cols)
             result_table.add_rows(new_row)
             
-            #st.write(f'Best summary: {b_sum}')
-    st.write('All summaries generated!')
+    st.write('All data subsets generated!')
