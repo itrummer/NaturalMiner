@@ -72,12 +72,12 @@ nr_iterations = st.slider(
     'Number of iterations:', 
     min_value=1, max_value=500, value=200)
 label = st.text_input(
-    'Communication goal:', max_chars=100, 
+    'Pattern (natural language):', max_chars=100, 
     value=scenarios[selected]['goal'])
 print('Generated input elements')
 
 
-if st.button('Generate Summaries!'):
+if st.button('Find Pattern!'):
     print('Generating summaries ...')
     
     result_cols = ['Predicate', 'Summary', 'Quality']

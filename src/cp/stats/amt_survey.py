@@ -73,6 +73,9 @@ if __name__ == '__main__':
         x = np.arange(5)
         rects1 = ax.bar(x - width/2, v_votes[i*5:i*5+5], width, label='V')
         rects2 = ax.bar(x + width/2, p_votes[i*5:i*5+5], width, label='P', hatch='///')
+        print('Output')
+        print(f'Vizier: {sum(v_votes[i*5:i*5+5])}')
+        print(f'BABOONS: {sum(p_votes[i*5:i*5+5])}')
         
     
     # Add some text for labels, title and custom x-axis tick labels, etc.

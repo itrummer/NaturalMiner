@@ -75,6 +75,7 @@ def perf_plot(df, approaches, metric, y_bounds, y_label, y_mode, out_path):
         y_mode: type of y axis (linear vs. log)
         out_path: write output plot to this file
     """
+    print(f'Result type: {y_label}')
     _, axes = plt.subplots(nrows=2, ncols=2, figsize=(3,2.5))
     scenario_names = ['Laptops (30 KB)', 
                       'Tools (10 MB)',
@@ -86,6 +87,8 @@ def perf_plot(df, approaches, metric, y_bounds, y_label, y_mode, out_path):
             index=['testcase', 'nrfacts', 'nrpreds'], 
             columns='approach', values=metric)
         plot_data = [df_pivot[a] for a in approaches]
+        approach_means = [(a, df_pivot[a].mean()) for a in approaches]
+        print(f'Scenario {scenario}: {approach_means}')
         
         x_pos = math.floor(scenario_id / 2)
         y_pos = math.floor(scenario_id % 2)
