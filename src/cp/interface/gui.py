@@ -22,11 +22,9 @@ import cp.algs.rl
 import cp.sql.pred
 import cp.text.sum
 
-st.set_page_config(page_title='BABOONS')
+st.set_page_config(page_title='NaturalMiner')
 st.markdown('''
-BABOONS (Black-Box Optimization of Natural Language Summaries) generates
-comparative summaries from relational tables that are optimized 
-according to user-defined criteria.
+NaturalMiner mines large data sets for patterns described in natural language.
 ''')
 
 root_dir = src_dir.parent
@@ -39,35 +37,40 @@ print('Example scenarios loaded')
 selected = st.selectbox(
     'Select Example (Optional)', options=range(nr_scenarios), 
     format_func=lambda idx:scenarios[idx]['scenario'])
-connection_info = st.text_input(
-    'Database connection details (format: "<Database>:<User>:<Password>"):',
-    value=scenarios[selected]['dbconnection']).split(':')
-db_name = connection_info[0]
-db_user = connection_info[1]
-db_pwd = connection_info[2] if len(connection_info) > 1 else ''
-table = st.text_input(
-    'Name of database table to summarize:', max_chars=100,
-    value=scenarios[selected]['table'])
-cmp_preds = st.text_area(
-    'Data subsets to describe (one SQL predicate per line):',
-    value=scenarios[selected]['predicates'], height=20).split('\n')
-preamble = st.text_input(
-    'Preamble text for each fact:', 
-    value=scenarios[selected]['preamble'])
-dims_info = st.text_area(
-    'One dimension column per line ' +\
-    '(format: "<Column>:<TemplateText>"; "<V>" as placeholder):', 
-    value=scenarios[selected]['dimensions'], height=20).split('\n')
-aggs_info = st.text_area(
-    'One aggregation column per line ' +\
-    '(format: "<Column>:<TemplateText>"):', 
-    value=scenarios[selected]['aggregates'], height=20).split('\n')
-nr_facts = st.slider(
-    'Number of facts:', min_value=1, max_value=3,  
-    value=scenarios[selected]['nr_facts'])
-nr_preds = st.slider(
-    'Predicates per fact:', min_value=0, max_value=3, 
-    value=scenarios[selected]['nr_preds'])
+
+with st.expander('Data Source'):
+    connection_info = st.text_input(
+        'Database connection details (format: "<Database>:<User>:<Password>"):',
+        value=scenarios[selected]['dbconnection']).split(':')
+    db_name = connection_info[0]
+    db_user = connection_info[1]
+    db_pwd = connection_info[2] if len(connection_info) > 1 else ''
+    table = st.text_input(
+        'Name of database table to summarize:', max_chars=100,
+        value=scenarios[selected]['table'])
+    cmp_preds = st.text_area(
+        'Data subsets to describe (one SQL predicate per line):',
+        value=scenarios[selected]['predicates'], height=20).split('\n')
+
+with st.expander('Text Templates'):
+    preamble = st.text_input(
+        'Preamble text for each fact:', 
+        value=scenarios[selected]['preamble'])
+    dims_info = st.text_area(
+        'One dimension column per line ' +\
+        '(format: "<Column>:<TemplateText>"; "<V>" as placeholder):', 
+        value=scenarios[selected]['dimensions'], height=20).split('\n')
+    aggs_info = st.text_area(
+        'One aggregation column per line ' +\
+        '(format: "<Column>:<TemplateText>"):', 
+        value=scenarios[selected]['aggregates'], height=20).split('\n')
+    nr_facts = st.slider(
+        'Number of facts:', min_value=1, max_value=3,  
+        value=scenarios[selected]['nr_facts'])
+    nr_preds = st.slider(
+        'Predicates per fact:', min_value=0, max_value=3, 
+        value=scenarios[selected]['nr_preds'])
+
 nr_iterations = st.slider(
     'Number of iterations:', 
     min_value=1, max_value=500, value=200)
