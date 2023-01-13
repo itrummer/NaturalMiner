@@ -46,11 +46,8 @@ with st.expander('Data Source'):
     db_user = connection_info[1]
     db_pwd = connection_info[2] if len(connection_info) > 1 else ''
     table = st.text_input(
-        'Name of database table to summarize:', max_chars=100,
+        'Name of database table to analyze:', max_chars=100,
         value=scenarios[selected]['table'])
-    cmp_preds = st.text_area(
-        'Data subsets to describe (one SQL predicate per line):',
-        value=scenarios[selected]['predicates'], height=20).split('\n')
 
 with st.expander('Text Templates'):
     preamble = st.text_input(
@@ -71,12 +68,18 @@ with st.expander('Text Templates'):
         'Predicates per fact:', min_value=0, max_value=3, 
         value=scenarios[selected]['nr_preds'])
 
-nr_iterations = st.slider(
-    'Number of iterations:', 
-    min_value=1, max_value=500, value=200)
+cmp_preds = st.text_area(
+    'Data subsets to analyze (one SQL predicate per line):',
+    value=scenarios[selected]['predicates'], height=20).split('\n')
+
 label = st.text_input(
     'Pattern (natural language):', max_chars=100, 
     value=scenarios[selected]['goal'])
+
+nr_iterations = st.slider(
+    'Number of iterations:', 
+    min_value=1, max_value=500, value=200)
+
 print('Generated input elements')
 
 
