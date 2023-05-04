@@ -1,4 +1,4 @@
-# BABOONS: Black-Box Optimization of Data Summaries in Natural Language
+# NaturalMiner: Describe Data Mining Goals in Natural Language
 
 BABOONS optimizes summaries of data sets in natural language, using language models to evaluate data summaries. For instance, users can submit natural language instructions, describing the type of data summary they are seeking. The system then uses language models to compare alternative summaries for the same data set, selecting the summary that most closely matches user instructions.
 
