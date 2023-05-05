@@ -4,8 +4,8 @@ Created on Aug 15, 2021
 @author: immanueltrummer
 '''
 import argparse
-import cp.eval.bench
-import cp.sql.pred
+import nminer.eval.bench
+import nminer.sql.pred
 import json
 import psycopg2
 
@@ -18,7 +18,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     with psycopg2.connect(database=args.db, user=args.user) as connection:
-        for scenario_id, scenario in enumerate(cp.eval.bench.scenarios):
+        for scenario_id, scenario in enumerate(nminer.eval.bench.scenarios):
             print(f'Processing scenario {scenario_id}')
             
             cmp_col = scenario['cmp_col']
@@ -35,10 +35,10 @@ if __name__ == '__main__':
                         if v is not None:
                             for s in v.split(';'):
                                 languages.add(s)
-                    preds = [f"{cmp_col} like '%{cp.sql.pred.sql_esc(l)}%'" 
+                    preds = [f"{cmp_col} like '%{nminer.sql_esc(l)}%'" 
                              for l in languages]
                 else:
-                    preds = [cp.sql.pred.pred_sql(cmp_col, v) for v in cmp_vals]
+                    preds = [nminer.sql.pred.pred_sql(cmp_col, v) for v in cmp_vals]
                 
                 scenario['predicates'] = preds
                 print(f'Extracted {len(preds)} predicates.')

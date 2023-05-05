@@ -6,7 +6,7 @@ Analyzes results for approaches summarizing item batches.
 @author: immanueltrummer
 '''
 import argparse
-import cp.stats.common
+import nminer.stats.common
 import matplotlib.pyplot as plt
 import pandas as pd
 
@@ -19,7 +19,7 @@ if __name__ == '__main__':
     
     df = pd.read_csv(args.in_file, sep=',')
     df['bquality'] = df['reward']
-    df = cp.stats.common.preprocess(df)
+    df = nminer.stats.common.preprocess(df)
     df = df.loc[:,['nrfacts', 'nrpreds', 'approach', 'itemtime','fquality']]
     print(df.info())
     
@@ -35,9 +35,9 @@ if __name__ == '__main__':
                          'font.family':'serif'})
     plt.close('all')
     
-    cp.stats.common.perf_breakdown(
+    nminer.stats.common.perf_breakdown(
         df, 'approach', ['SP', 'SC', 'CP'], 'Approach', 'itemtime', 
         None, 'Time (s)', 'log', f'{args.out_pre}timebreak.pdf')
-    cp.stats.common.perf_breakdown(
+    nminer.stats.common.perf_breakdown(
         df, 'approach', ['SP', 'SC', 'CP'], 'Approach', 'fquality',
         None, 'Quality', 'linear', f'{args.out_pre}qualbreak.pdf')

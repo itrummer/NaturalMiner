@@ -7,15 +7,14 @@ from setuptools import setup, find_packages
 
 setup(
     name='naturalminer',
-    version='0.1.4',    
+    version='0.1.11',
     description='A data mining tool used via natural language commands',
     url='https://github.com/itrummer/NaturalMiner',
     author='Immanuel Trummer',
     author_email='immanuel.trummer@gmail.com',
     license='MIT License',
-    packages=find_packages(
-        where='src'
-        ),
+    packages=find_packages('src'),
+    package_dir={'':'src'},
     install_requires=[
         'psycopg2-binary>=2.8, <3',
         'jinja2>=3.0, <4',

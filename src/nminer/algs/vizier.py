@@ -3,7 +3,7 @@ Created on Apr 27, 2022
 
 @author: immanueltrummer
 '''
-import cp.text.fact
+import nminer.text.fact
 import datetime
 import googleapiclient.discovery
 import google.cloud.storage
@@ -114,7 +114,7 @@ class VizierSum():
         """
         summary = []
         for _ in range(self.nr_facts):
-            fact = cp.text.fact.Fact(self.nr_preds)
+            fact = nminer.text.fact.Fact(self.nr_preds)
             summary.append(fact)
         
         for p in trial['parameters']:

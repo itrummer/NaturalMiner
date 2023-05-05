@@ -4,14 +4,14 @@ Created on Jun 5, 2021
 @author: immanueltrummer
 '''
 from collections import defaultdict
-from cp.sql.query import AggQuery
-import cp.cache.dynamic
-import cp.cache.static
-import cp.cache.proactive
-from cp.text.fact import Fact
-from cp.sql.pred import is_pred
-from cp.sql.query import QueryEngine
-from cp.text.sum import SumGenerator, SumEvaluator
+from nminer.sql.query import AggQuery
+import nminer.cache.dynamic
+import nminer.cache.static
+import nminer.cache.proactive
+from nminer.text.fact import Fact
+from nminer.sql.pred import is_pred
+from nminer.sql.query import QueryEngine
+from nminer.text.sum import SumGenerator, SumEvaluator
 from gym import spaces
 from sentence_transformers import SentenceTransformer, util
 import gym
@@ -255,14 +255,14 @@ class PickingEnv(gym.Env):
             newly created cache object
         """
         if c_type == 'dynamic':
-            cache = cp.cache.dynamic.DynamicCache(connection, table, cmp_pred)
+            cache = nminer.cache.dynamic.DynamicCache(connection, table, cmp_pred)
         elif c_type == 'empty':
-            cache = cp.cache.static.EmptyCache()
+            cache = nminer.cache.static.EmptyCache()
         elif c_type == 'cube':
-            cache = cp.cache.static.CubeCache(
+            cache = nminer.cache.static.CubeCache(
                 connection, table, dim_cols, cmp_pred, agg_cols, 900)
         elif c_type == 'proactive':
-            cache = cp.cache.proactive.ProCache(
+            cache = nminer.cache.proactive.ProCache(
                 connection, table, cmp_pred, nr_facts, 
                 nr_preds, all_preds, self.pred_graph,
                 agg_cols, self.agg_graph)

@@ -4,11 +4,11 @@ Created on Aug 15, 2021
 @author: immanueltrummer
 '''
 import collections
-import cp.algs.rl
-import cp.algs.sample
-import cp.cache.multi
-import cp.sql.query
-import cp.text.fact
+import nminer.algs.rl
+import nminer.algs.sample
+import nminer.cache.multi
+import nminer.sql.query
+import nminer.text.fact
 import dataclasses
 import gym
 from gym import spaces
@@ -59,22 +59,22 @@ def eval_solution(connection, batch, all_preds, solution):
     
     result = {}
     for sum_tmp, cmp_preds in sum_to_preds.items():
-        cache = cp.cache.multi.MultiItemCache(
+        cache = nminer.cache.multi.MultiItemCache(
             connection, table, cmp_col, 
             all_preds, agg_cols, sum_tmp)
-        s_eval = cp.text.sum.SumEvaluator()
+        s_eval = nminer.text.sum.SumEvaluator()
         
         logging.info('Generating text summaries ...')
         sums = []
         for cmp_pred in cmp_preds:
-            q_engine = cp.sql.query.QueryEngine(
+            q_engine = nminer.sql.query.QueryEngine(
                 connection, table, cmp_pred, cache)
-            s_gen = cp.text.sum.SumGenerator(
+            s_gen = nminer.text.sum.SumGenerator(
                 all_preds, preamble, dim_cols,
                 dims_tmp, agg_cols, aggs_txt,
                 q_engine)
             sum_tmp = solution[cmp_pred]
-            sum_facts = [cp.text.fact.Fact.from_props(p) for p in sum_tmp]
+            sum_facts = [nminer.text.fact.Fact.from_props(p) for p in sum_tmp]
             d_sum, _ = s_gen.generate(sum_facts)
             sums += [d_sum]
 
@@ -106,7 +106,7 @@ def simple_batch(connection, batch, all_preds):
     cmp_preds = random.choices(all_cmp_preds, k=to_select)
     test_case['cmp_preds'] = cmp_preds
 
-    env = cp.algs.rl.PickingEnv(
+    env = nminer.algs.rl.PickingEnv(
         connection, **test_case, all_preds=all_preds,
         c_type='proactive', cluster=True)
     model = A2C(
@@ -122,7 +122,7 @@ def simple_batch(connection, batch, all_preds):
     else:
         nr_facts = test_case['nr_facts']
         nr_preds = test_case['nr_preds']
-        fact = cp.text.fact.Fact(nr_preds)
+        fact = nminer.text.fact.Fact(nr_preds)
         best_props = nr_facts * [fact]
     
     return {p:best_props for p in batch['predicates']}
@@ -234,7 +234,7 @@ class IterativeClusters():
         prior_results = {p:e for p, e in s_eval.items() if p in cmp_preds}
         logging.info(f'Best prior results: {prior_results}')
         prior_quality = {p:e.quality for p, e in prior_results.items()}
-        env = cp.algs.rl.PickingEnv(
+        env = nminer.algs.rl.PickingEnv(
             self.connection, **test_case, 
             all_preds=self.dim_preds,
             c_type='proactive', cluster=True,
@@ -254,7 +254,7 @@ class IterativeClusters():
             logging.info('No valid solution produced')
             nr_facts = test_case['nr_facts']
             nr_preds = test_case['nr_preds']
-            fact = cp.text.fact.Fact(nr_preds)
+            fact = nminer.text.fact.Fact(nr_preds)
             best_props = nr_facts * [fact]
         
         return best_props
@@ -514,7 +514,7 @@ class BatchProcessor():
                     # cursor.execute(sql)
                     # row = cursor.fetchone()
                     # val = row['val']
-                    # e_val = cp.sql.pred.sql_esc(val)
+                    # e_val = nminer.sql.pred.sql_esc(val)
                     # agg_feature = \
                         # f"(select sum(case when {dim_col} = '{e_val}' " \
                         # f"then {agg_col} else 0 end))/(select count({agg_col}))"
@@ -614,13 +614,13 @@ class SubModularIterative():
         # table = test_case['table']
         # sample_ratio = 0.01
         # logging.info(f'Sampling {table} with ratio {sample_ratio} ...')
-        # sample_table = cp.algs.sample.create_sample(
+        # sample_table = nminer.create_sample(
             # self.connection, table, sample_ratio)
         # test_case['table'] = sample_table
     
         total_timesteps = 200
         logging.info(f'Iterating for {total_timesteps} steps ...')
-        env = cp.algs.rl.PickingEnv(
+        env = nminer.algs.rl.PickingEnv(
             self.connection, **test_case, 
             all_preds=self.all_preds,
             c_type='proactive', cluster=True,
@@ -638,7 +638,7 @@ class SubModularIterative():
             logging.info('No summary found')
             nr_facts = test_case['nr_facts']
             nr_preds = test_case['nr_preds']
-            fact = cp.text.fact.Fact(nr_preds)
+            fact = nminer.text.fact.Fact(nr_preds)
             best_props = nr_facts * [fact]
         
         return best_props

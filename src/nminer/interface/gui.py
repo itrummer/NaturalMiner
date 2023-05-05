@@ -18,9 +18,9 @@ src_dir = pathlib.Path(cur_file_dir).parent.parent
 sys.path.append(str(src_dir))
 print(sys.path)
 
-import cp.algs.rl
-import cp.sql.pred
-import cp.text.sum
+import nminer.algs.rl
+import nminer.sql.pred
+import nminer.text.sum
 
 st.set_page_config(page_title='NaturalMiner')
 st.markdown('''
@@ -111,12 +111,12 @@ if st.button('Find Pattern!'):
             connection.autocommit = True
             
             start_s = time.time()
-            all_preds = cp.sql.pred.all_preds(
+            all_preds = nminer.sql.pred.all_preds(
                 connection, t['table'], 
                 t['dim_cols'], cmp_pred)
-            sum_eval = cp.text.sum.SumEvaluator(
+            sum_eval = nminer.text.sum.SumEvaluator(
                 1, 'facebook/bart-large-mnli', label)
-            env = cp.algs.rl.PickingEnv(
+            env = nminer.algs.rl.PickingEnv(
                 connection, **t, all_preds=all_preds,
                 c_type='proactive', cluster=True,
                 sum_eval=sum_eval)

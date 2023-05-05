@@ -4,11 +4,11 @@ Created on Aug 7, 2021
 @author: immanueltrummer
 '''
 from cp.sql.query import AggQuery, GroupQuery
-import cp.cache.dynamic
-import cp.text.fact
-import cp.algs.rl
-import cp.sql.cost
-import cp.text.sum
+import nminer.cache.dynamic
+import nminer.text.fact
+import nminer.algs.rl
+import nminer.sql.cost
+import nminer.text.sum
 import logging
 from stable_baselines3 import A2C
 import time
@@ -24,7 +24,7 @@ def create_sample(connection, table, sample_ratio):
     Returns:
         name of table containing sample
     """
-    total_rows, _ = cp.sql.cost.estimates(
+    total_rows, _ = nminer.sql.cost.estimates(
         connection, f'select * from {table}')
     sample_rows = int(
         max(10000, total_rows * sample_ratio))
@@ -67,16 +67,16 @@ class Sampler():
         dims_tmp = test_case['dims_tmp']
         aggs_txt = test_case['aggs_txt']
         
-        self.cache = cp.cache.dynamic.DynamicCache(
+        self.cache = nminer.cache.dynamic.DynamicCache(
             connection, self.table, self.cmp_pred)
-        self.q_engine = cp.sql.query.QueryEngine(
+        self.q_engine = nminer.sql.query.QueryEngine(
             connection, self.table, 
             self.cmp_pred, self.cache)
-        self.s_gen = cp.text.sum.SumGenerator(
+        self.s_gen = nminer.text.sum.SumGenerator(
             all_preds, preamble, self.dim_cols,
             dims_tmp, self.agg_cols, aggs_txt,
             self.q_engine)
-        self.s_eval = cp.text.sum.SumEvaluator()
+        self.s_eval = nminer.text.sum.SumEvaluator()
 
     def _cost(self, g_queries):
         """ Calculates cost estimate for a set of group-by queries.
@@ -90,7 +90,7 @@ class Sampler():
         total_cost = 0
         for g_q in g_queries:
             sql = g_q.sql()
-            _, cost = cp.sql.cost.estimates(self.connection, sql)
+            _, cost = nminer.sql.cost.estimates(self.connection, sql)
             total_cost += cost
         
         return total_cost
@@ -220,7 +220,7 @@ class Sampler():
         cmp_pred = sample_case['cmp_pred']
         del sample_case['cmp_pred']
         sample_case['cmp_preds'] = [cmp_pred]
-        env = cp.algs.rl.PickingEnv(
+        env = nminer.algs.rl.PickingEnv(
             self.connection, **sample_case, 
             all_preds=self.all_preds, 
             c_type=self.c_type, cluster=True)
@@ -247,7 +247,7 @@ class Sampler():
             conf = env.props_to_conf[prop_sum]
             if reward is not None and conf is not None:
                 c_qual = reward * conf
-                fact_sum = [cp.text.fact.Fact.from_props(p) for p in prop_sum]
+                fact_sum = [nminer.text.fact.Fact.from_props(p) for p in prop_sum]
                 sum_eval += [(fact_sum, c_qual)]
         
         s_sums = sorted(sum_eval, key=lambda s_e: s_e[1], reverse=True)

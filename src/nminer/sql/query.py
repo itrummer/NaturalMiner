@@ -3,7 +3,7 @@ Created on Jun 5, 2021
 
 @author: immanueltrummer
 '''
-from cp.sql.pred import is_pred, pred_sql
+from nminer.sql.pred import is_pred, pred_sql
 from dataclasses import dataclass
 from typing import FrozenSet, Tuple, Set
 
@@ -208,7 +208,6 @@ class QueryEngine():
         self.connection = connection
         self.table = table
         self.cmp_pred = cmp_pred
-        self.connection.autocommit = True
         self.q_cache = cache
         self.nr_queries = 0
         

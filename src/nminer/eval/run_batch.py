@@ -4,16 +4,16 @@ Created on Aug 15, 2021
 @author: immanueltrummer
 '''
 import argparse
-import cp.algs.batch
-import cp.algs.sample
-import cp.sql.pred
+import nminer.algs.batch
+import nminer.algs.sample
+import nminer.sql.pred
 import json
 import logging
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import statistics
 import time
-import cp.algs.batch
+import nminer.algs.batch
 from cp.algs.batch import IterativeClusters
 
 
@@ -77,7 +77,7 @@ if __name__ == '__main__':
                 cursor_factory=RealDictCursor) as connection:
                 connection.autocommit = True
 
-                all_preds = cp.sql.pred.all_preds(
+                all_preds = nminer.sql.pred.all_preds(
                     connection, batch['general']['table'], 
                     batch['general']['dim_cols'], 'true')                
                 out_file.write(
@@ -92,9 +92,9 @@ if __name__ == '__main__':
                     batch['general']['nr_preds'] = nr_preds
     
                     nr_items = len(batch['predicates'])
-                    # ic = cp.algs.batch.IterativeClusters(
+                    # ic = nminer.algs.batch.IterativeClusters(
                         # connection, batch, all_preds)
-                    si = cp.algs.batch.SubModularIterative(
+                    si = nminer.algs.batch.SubModularIterative(
                         connection, batch, all_preds)
                     
                     si_start_s = time.time()
@@ -119,7 +119,7 @@ if __name__ == '__main__':
                         test_case['cmp_pred'] = cmp_pred
                         
                         item_start_s = time.time()
-                        sampler = cp.algs.sample.Sampler(
+                        sampler = nminer.algs.sample.Sampler(
                             connection, test_case, all_preds, 
                             0.01, 5, 'proactive')
                         text_to_reward, _ = sampler.run_sampling()

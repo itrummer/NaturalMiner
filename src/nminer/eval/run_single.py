@@ -4,11 +4,11 @@ Created on Jun 6, 2021
 @author: immanueltrummer
 '''
 import argparse
-import cp.algs.base
-import cp.algs.sample
-import cp.eval.bench
-import cp.algs.rl
-import cp.sql.pred
+import nminer.algs.base
+import nminer.algs.sample
+import nminer.eval.bench
+import nminer.algs.rl
+import nminer.sql.pred
 import logging
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -55,7 +55,7 @@ def run_rl(connection, test_case, all_preds, nr_samples, c_type, cluster):
     test_copy = test_case.copy()
     del test_copy['cmp_pred']
     test_copy['cmp_preds'] = [cmp_pred]
-    env = cp.algs.rl.PickingEnv(
+    env = nminer.algs.rl.PickingEnv(
         connection, **test_copy, all_preds=all_preds,
         c_type=c_type, cluster=cluster)
     model = A2C(
@@ -83,7 +83,7 @@ def run_sampling(connection, test_case, all_preds, c_type):
     Returns:
         summaries with quality, performance statistics
     """
-    sampler = cp.algs.sample.Sampler(
+    sampler = nminer.algs.sample.Sampler(
         connection, test_case, all_preds, 0.01, 5, c_type)
     text_to_reward, p_stats = sampler.run_sampling()
     
@@ -103,7 +103,7 @@ def run_random(connection, test_case, all_preds, nr_sums, timeout_s):
     Returns:
         summaries with quality, performance statistics
     """
-    return cp.algs.base.rand_sums(
+    return nminer.algs.base.rand_sums(
         nr_sums=nr_sums, timeout_s=timeout_s, 
         connection=connection, all_preds=all_preds,
         **test_case)
@@ -121,7 +121,7 @@ def run_gen(connection, test_case, all_preds, timeout_s):
     Returns:
         summaries with quality, performance statistics
     """
-    return cp.algs.base.gen_rl(
+    return nminer.algs.base.gen_rl(
         timeout_s=timeout_s, connection=connection, 
         all_preds=all_preds, **test_case)
 
@@ -138,7 +138,7 @@ def run_viz(connection, test_case, all_preds, timeout_s):
     Returns:
         summaries with quality, performance statistics
     """
-    return cp.algs.base.vizier_sums(
+    return nminer.algs.base.vizier_sums(
         timeout_s=timeout_s, all_preds=all_preds,
         connection=connection, **test_case)
 
@@ -212,10 +212,10 @@ def main():
                               cursor_factory=RealDictCursor) as connection:
             connection.autocommit = True
             
-            test_batches = cp.eval.bench.generate_testcases()
+            test_batches = nminer.eval.bench.generate_testcases()
             for b_id, b in enumerate(test_batches):
                 for t_id, t in enumerate(b):
-                    all_preds = cp.sql.pred.all_preds(
+                    all_preds = nminer.sql.pred.all_preds(
                         connection, t['table'], 
                         t['dim_cols'], t['cmp_pred'])
                     pred_cnt = len(all_preds)

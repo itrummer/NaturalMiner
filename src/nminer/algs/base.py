@@ -3,11 +3,11 @@ Created on Jul 21, 2021
 
 @author: immanueltrummer
 '''
-import cp.algs.vizier
-import cp.cache.static
-import cp.text.fact
-import cp.sql.query
-import cp.text.sum
+import nminer.algs.vizier
+import nminer.cache.static
+import nminer.text.fact
+import nminer.sql.query
+import nminer.text.sum
 import time
 import torch
 
@@ -48,13 +48,13 @@ def rand_sums(
         Dictionary mapping summaries to reward, statistics
     """
     start_s = time.time()
-    cache = cp.cache.static.EmptyCache()
-    q_engine = cp.sql.query.QueryEngine(
+    cache = nminer.cache.static.EmptyCache()
+    q_engine = nminer.sql.query.QueryEngine(
         connection, table, cmp_pred, cache)
-    s_gen = cp.text.sum.SumGenerator(
+    s_gen = nminer.text.sum.SumGenerator(
         all_preds, preamble, dim_cols, dims_tmp, 
         agg_cols, aggs_txt, q_engine)
-    s_eval = cp.text.sum.SumEvaluator()
+    s_eval = nminer.text.sum.SumEvaluator()
 
     pred_cnt = len(all_preds)
     agg_cnt = len(agg_cols)
@@ -66,7 +66,7 @@ def rand_sums(
         
         facts = []
         for _ in range(nr_facts):
-            fact = cp.text.fact.Fact(nr_preds)
+            fact = nminer.text.fact.Fact(nr_preds)
             fact.random_init(pred_cnt=pred_cnt, agg_cnt=agg_cnt)
             facts.append(fact)
     
@@ -119,7 +119,7 @@ def gen_rl(timeout_s, **kwargs):
     r_params = kwargs.copy()
     r_params['nr_facts'] = 10
     r_params['nr_preds'] = 1
-    s_eval = cp.text.sum.SumEvaluator()
+    s_eval = nminer.text.sum.SumEvaluator()
     start_s = time.time()
     t_to_q = {}
     eval_total_s = 0
@@ -193,18 +193,18 @@ def vizier_sums(
         Dictionary mapping summaries to reward, statistics
     """
     start_s = time.time()
-    cache = cp.cache.static.EmptyCache()
-    q_engine = cp.sql.query.QueryEngine(
+    cache = nminer.cache.static.EmptyCache()
+    q_engine = nminer.sql.query.QueryEngine(
         connection, table, cmp_pred, cache)
-    s_gen = cp.text.sum.SumGenerator(
+    s_gen = nminer.text.sum.SumGenerator(
         all_preds, preamble, dim_cols, dims_tmp, 
         agg_cols, aggs_txt, q_engine)
-    s_eval = cp.text.sum.SumEvaluator()
+    s_eval = nminer.text.sum.SumEvaluator()
 
     pred_cnt = len(all_preds)
     agg_cnt = len(agg_cols)
     text_to_quality = {}
-    v_sum = cp.algs.vizier.VizierSum(nr_facts, nr_preds, pred_cnt, agg_cnt)
+    v_sum = nminer.algs.vizier.VizierSum(nr_facts, nr_preds, pred_cnt, agg_cnt)
     
     counter = 0
     while True:
