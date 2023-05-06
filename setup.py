@@ -7,12 +7,11 @@ from setuptools import setup, find_packages
 
 setup(
     name='naturalminer',
-    version='0.1.14',
-    description='A data mining tool used via natural language commands',
+    version='0.1.0',
+    description='Mine data for patterns described in natural language',
     url='https://github.com/itrummer/NaturalMiner',
     author='Immanuel Trummer',
     author_email='immanuel.trummer@gmail.com',
-    license='MIT License',
     packages=find_packages('src'),
     package_dir={'':'src'},
     install_requires=[
@@ -34,5 +33,6 @@ setup(
         'Natural Language :: English',
         'Topic :: Database :: Front-Ends',
         'Programming Language :: Python',
+        'License :: OSI Approved :: MIT License',
     ],
 )
