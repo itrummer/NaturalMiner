@@ -76,12 +76,15 @@ Optionally, you can configure the mining process. While the default settings are
 - `degree`: NaturalMiner represents the search space as a graph where nodes represent fact combinations, edges connect similar facts. The degree determines the number of neighbor nodes in this graph. The default setting of five should work well for most scenarios.
 - `nr_iterations`: NaturalMiner iteratively evaluates fact combinations for a given number of iterations. The default setting of 200 works well for relatively small data sets. If the number of rows or columns is large, you may want to increase this parameter for optimal quality.
 
+# Using the GUI
+
+NaturalMiner can also be used over a GUI in the Web browser. To use the GUI, you need to install NaturalMiner with the GUI option (see above). Then, from the root directory, start the GUI using the following command:
+```
+streamlit run src/nminer/interface/gui.py
+```
+The terminal should now show a URL, allowing you to access the GUI using a Web browser. The interface enables you to change most of the aforementioned configuration options directly in the GUI.
 
 # Reproducing Paper Experiments
-
-BABOONS optimizes summaries of data sets in natural language, using language models to evaluate data summaries. For instance, users can submit natural language instructions, describing the type of data summary they are seeking. The system then uses language models to compare alternative summaries for the same data set, selecting the summary that most closely matches user instructions.
-
-The implementation can be used in two modes. BABOONS features an interactive demo interface, allowing users to submit natural language instructions live in a GUI. This interface can be found in the `src/cp/interface/gui.py` file and started via `streamlit run src/cp/interface/gui.py` (note that streamlit needs to be installed first). A video demonstrating this interface is available [here](https://www.youtube.com/embed/ssGwZcUkMKA). 
 
 The experiments presented in the associated VLDB paper can be reproduced using the files in the `src/cp/eval` folder. Execute `run_single.py` to run experiments that summarize different items separately. Before doing so, make sure to uncomment all relevant baselines in the main function (starting from Line 232). The data to summarize must be stored in a Postgres database. The script takes several input parameters:
 - The name of the Postgres database containing data to summarize.
@@ -100,6 +103,9 @@ Use `run_batch.py` to run experiments that treat batches of items as a whole, th
 - The log level, determining how much output to generate during processing.
 
 ## How to Cite
+
+Please cite the following publication if refering to this code (the system was renamed from BABOONS to NaturalMiner):
+
 ```
 @article{Trummer2022f,
 author = {Trummer, Immanuel},
