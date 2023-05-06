@@ -86,7 +86,7 @@ The terminal should now show a URL, allowing you to access the GUI using a Web b
 
 # Reproducing Paper Experiments
 
-The experiments presented in the associated VLDB paper can be reproduced using the files in the `src/nminer/eval` folder. Execute `run_single.py` to run experiments that summarize different items separately. Before doing so, make sure to uncomment all relevant baselines in the main function (starting from Line 232). The data to summarize must be stored in a Postgres database. The script takes several input parameters:
+The experiments presented in the associated VLDB paper can be reproduced using the files in the `src/nminer/eval` folder. Execute `run_single.py` to run experiments that summarize different items separately. Before doing so, make sure to uncomment all relevant baselines in the main function (starting from Line 232). The data to summarize must be stored in a Postgres database, you find the corresponding data [here](https://drive.google.com/file/d/131r8WJexU1JsmIL4Gyx9EFIZXdOTbeX7/view?usp=sharing). The script takes several input parameters:
 - The name of the Postgres database containing data to summarize.
 - The user name of the Postgres database (it is assumed that no password is required).
 - The name of the output file, containing generated data summaries.
