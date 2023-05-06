@@ -46,7 +46,38 @@ Next, we discuss the parameters of the mining function. You may have to update t
 
 ## Configuring Data Access
 
-- TODO
+- `db_name`: the name of the Postgres database.
+- `db_user`: the name of a Postgres user with access to the database.
+- `db_pwd`: the Postgres password of the database user.
+- `table`: name of the table to mine in the Postgres database.
+
+## Configuring Data Semantics
+
+NaturalMiner assesses relevance based on a natural language description of mined facts. You need to provide text templates allowing NaturalMiner to express mined facts in natural language.
+
+- `preamble`: prefix text used at the start of each mined fact. E.g., if mining facts that compare laptops, this could be `Among all laptops`. 
+- `dim_cols`: list of table column names to consider for equality predicates.
+- `dims_txt`: list of text templates for expressing equality predicates on aforementioned columns. Each text template is a string that contains a placeholder to represent the constant in the equality predicate. E.g., `with <V> graphics card` is a reasonable template for expressing a restriction to laptop models with a specific graphics card (which substitutes the `<V>` placeholder).
+- `agg_cols`: list of numerical table columns to consider for aggregation.
+- `aggs_txt`: list of text descriptions associated with aggregation columns. E.g., `its discounted price` is a reasonable description for a column containing the laptop price.
+
+## Configuring Mining Goals
+
+- `target`: NaturalMiner mines for facts that compare target data to the entire data set. E.g., the target data could relate to one specific laptop model. The target is a string containing an SQL predicate referencing the input table (e.g., `laptop_name='VivoBook S430'`).
+- `nl_pattern`: NaturalMiner retrieves facts matching a pattern described in natural language. E.g., `arguments for buying the laptop` or `why this laptop is bad` are possible patterns. Don't worry whether those patterns map to specific SQL queries - NaturalMiner takes care of that automatically.
+
+## Configuring the Mining Process
+
+Optionally, you can configure the mining process. While the default settings are reasonable, you probably want to try different configurations to get optimal performance.
+
+- `hg_model`: ID of the language model used to compare facts to the input pattern. NaturalMiner supports models for zero-shot classificatio, available on the [Huggingface model hub] (https://huggingface.co/models). E.g., `facebook/bart-large-mnli' is the default.
+- `nr_facts`: NaturalMiner searches single facts of combinations of facts. This parameter chooses the number of facts.
+- `nr_preds`: Facts relate to SQL queries that can use up to this many predicates. E.g., a fact stating that the average price of a laptop is 20% lower, compared to other laptops of the same brand and screen size uses two predicates (restrictions on brand and screen size).
+- `degree`: NaturalMiner represents the search space as a graph where nodes represent fact combinations, edges connect similar facts. The degree determines the number of neighbor nodes in this graph. The default setting of five should work well for most scenarios.
+- `nr_iterations`: NaturalMiner iteratively evaluates fact combinations for a given number of iterations. The default setting of 200 works well for relatively small data sets. If the number of rows or columns is large, you may want to increase this parameter for optimal quality.
+
+
+# Reproducing Paper Experiments
 
 BABOONS optimizes summaries of data sets in natural language, using language models to evaluate data summaries. For instance, users can submit natural language instructions, describing the type of data summary they are seeking. The system then uses language models to compare alternative summaries for the same data set, selecting the summary that most closely matches user instructions.
 
