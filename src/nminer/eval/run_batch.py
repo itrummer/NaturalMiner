@@ -14,7 +14,7 @@ from psycopg2.extras import RealDictCursor
 import statistics
 import time
 import nminer.algs.batch
-from cp.algs.batch import IterativeClusters
+from nminer.algs.batch import IterativeClusters
 
 
 def log_ic_results(nr_facts, nr_preds, method, avg_s, ic, out_file):

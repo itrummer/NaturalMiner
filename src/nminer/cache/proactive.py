@@ -4,10 +4,10 @@ Created on Aug 4, 2021
 @author: immanueltrummer
 '''
 from collections import defaultdict
-from cp.sql.cost import estimates
-from cp.sql.query import AggQuery, GroupQuery
-from cp.cache.dynamic import DynamicCache
-from cp.text.fact import Fact
+from nminer.sql.cost import estimates
+from nminer.sql.query import AggQuery, GroupQuery
+from nminer.cache.dynamic import DynamicCache
+from nminer.text.fact import Fact
 import logging
 
 class ProCache(DynamicCache):

@@ -3,8 +3,8 @@ Created on Jul 31, 2021
 
 @author: immanueltrummer
 '''
-from cp.cache.common import AggCache
-from cp.sql.pred import is_pred, pred_sql
+from nminer.cache.common import AggCache
+from nminer.sql.pred import is_pred, pred_sql
 import logging
 import time
 from psycopg2._psycopg import QueryCanceledError

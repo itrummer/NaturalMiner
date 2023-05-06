@@ -15,7 +15,7 @@ from psycopg2.extras import RealDictCursor
 import time
 
 from stable_baselines3 import A2C, PPO
-from cp.sql.pred import all_preds
+from nminer.sql.pred import all_preds
 from _collections import defaultdict
 
 def print_details(env):

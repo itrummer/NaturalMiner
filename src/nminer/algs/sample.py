@@ -3,7 +3,7 @@ Created on Aug 7, 2021
 
 @author: immanueltrummer
 '''
-from cp.sql.query import AggQuery, GroupQuery
+from nminer.sql.query import AggQuery, GroupQuery
 import nminer.cache.dynamic
 import nminer.text.fact
 import nminer.algs.rl

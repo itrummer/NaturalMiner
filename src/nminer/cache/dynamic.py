@@ -3,8 +3,8 @@ Created on Jul 31, 2021
 
 @author: immanueltrummer
 '''
-from cp.cache.common import AggCache
-from cp.sql.query import AggQuery
+from nminer.cache.common import AggCache
+from nminer.sql.query import AggQuery
 import logging
 import time
 

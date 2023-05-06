@@ -35,7 +35,7 @@ if __name__ == '__main__':
                         if v is not None:
                             for s in v.split(';'):
                                 languages.add(s)
-                    preds = [f"{cmp_col} like '%{nminer.sql_esc(l)}%'" 
+                    preds = [f"{cmp_col} like '%{nminer.sql.pred.sql_esc(l)}%'" 
                              for l in languages]
                 else:
                     preds = [nminer.sql.pred.pred_sql(cmp_col, v) for v in cmp_vals]

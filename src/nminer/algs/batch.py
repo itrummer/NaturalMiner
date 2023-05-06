@@ -18,7 +18,7 @@ import random
 from sklearn.cluster import KMeans
 from stable_baselines3 import A2C
 import statistics
-from cp.sql.pred import pred_sql
+from nminer.sql.pred import pred_sql
 
 
 @dataclasses.dataclass(frozen=True)

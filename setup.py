@@ -7,7 +7,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='naturalminer',
-    version='0.1.11',
+    version='0.1.14',
     description='A data mining tool used via natural language commands',
     url='https://github.com/itrummer/NaturalMiner',
     author='Immanuel Trummer',
@@ -21,7 +21,7 @@ setup(
         'transformers>=4.9, <5',
         'sentence-transformers>=2.0, <3',
         'psycopg2-binary>=2.9.6, <3',
-        'stable_baselines3>=1.8, <=2.1'
+        'stable-baselines3[extra]>=2.0.0a4, <3'
         ],
     extras_require={
         'gui':['streamlit>=1.9, <=2.0']

@@ -3,10 +3,10 @@ Created on Aug 18, 2021
 
 @author: immanueltrummer
 '''
-from cp.cache.common import AggCache
-from cp.sql.pred import is_pred, pred_sql
-from cp.sql.query import AggQuery
-from cp.text.fact import Fact
+from nminer.cache.common import AggCache
+from nminer.sql.pred import is_pred, pred_sql
+from nminer.sql.query import AggQuery
+from nminer.text.fact import Fact
 import logging
 
 class MultiItemCache(AggCache):
