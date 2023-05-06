@@ -1,4 +1,52 @@
-# NaturalMiner: Describe Data Mining Goals in Natural Language
+# NaturalMiner
+
+NaturalMiner mines data for patterns described in natural language. E.g., let's say you have a table with data about laptop models. For a specific laptop, you can mine for
+
+```
+arguments for buying the laptop
+```
+
+NaturalMiner automatically maps your pattern to relevant SQL queries, executes them efficiently, and retrieves the most relevant facts, given your pattern. To compare mined facts to your input pattern, it uses large language models such as BERT or GPT.
+
+# Quickstart
+
+Try out NaturalMiner using the Notebook [here](https://colab.research.google.com/drive/1EYbdlVgzOkf0b6PTjzntfRi_aEQaups_?usp=sharing). The notebook loads a sample database and allows you to mine for different patterns.
+
+# Local Setup
+
+**The following commands have been tested on Ubuntu 20 and should work on other Linux distributions as well as Mac OS X.**
+
+Install NaturalMiner via pip:
+```
+pip install naturalminer
+```
+
+If you want to use NaturalMiner via a graphical user interface in your Web browser, use the following command instead:
+```
+pip install naturalminer[gui]
+```
+
+NaturalMiner mines data stored in a Postgres database. If you have not installed Postgres yet, you can install and start it on Ubuntu using the following commands:
+```
+!sudo apt-get -y -qq update
+!sudo apt-get -y -qq install postgresql
+!sudo service postgresql start
+```
+
+# Using NaturalMiner
+
+You find an invocation example under `src/nminer/interface/example.py`. It uses the `mine` function to mine relevant facts. Before using NaturalMiner, make sure to load the relevant data into a Postgres database. NaturalMiner mines data in single tables. You find the SQL script creating the example data [here](https://drive.google.com/file/d/1pB6c8XnWF65vKUlDTiFVR5oeUPx9X0pN/view?usp=sharing). Create an example database and run the script (from the directory containing it) using the following commands:
+
+```
+createdb picker
+psql -f laptops.sql picker
+```
+
+Next, we discuss the parameters of the mining function. You may have to update the default values set in `example.py`, depending on your local setup.
+
+## Configuring Data Access
+
+- TODO
 
 BABOONS optimizes summaries of data sets in natural language, using language models to evaluate data summaries. For instance, users can submit natural language instructions, describing the type of data summary they are seeking. The system then uses language models to compare alternative summaries for the same data set, selecting the summary that most closely matches user instructions.
 
