@@ -115,9 +115,17 @@ Use `run_batch.py` to run experiments that treat batches of items as a whole, th
 
 ## How to Cite
 
-Please cite the following publication if refering to this code (the system was renamed from BABOONS to NaturalMiner):
+Please cite the following publications if refering to this code (the system was renamed from BABOONS to NaturalMiner):
 
 ```
+@inproceedings{Trummer2023,
+author = {Trummer, Immanuel},
+booktitle = {SIGMOD},
+pages = {139--142},
+title = {{Demonstrating NaturalMiner: Searching Large Data Sets for Abstract Patterns Described in Natural Language}},
+year = {2023}
+}
+
 @article{Trummer2022f,
 author = {Trummer, Immanuel},
 journal = {PVLDB},
