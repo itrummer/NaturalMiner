@@ -16,14 +16,25 @@ Try out NaturalMiner using the Notebook [here](https://colab.research.google.com
 
 **The following commands have been tested on Ubuntu 20 and should work on other Linux distributions as well as Mac OS X.**
 
+NaturalMiner has been tested with Python 3.10 - e.g., you can create a Python 3.10 environment using conda:
+```
+conda create --name nminerenv python=3.10
+conda activate nminerenv
+```
+
 Install NaturalMiner via pip:
 ```
 pip install naturalminer
 ```
 
-If you want to use NaturalMiner via a graphical user interface in your Web browser, use the following command instead:
+Next, install gym:
 ```
-pip install naturalminer[gui]
+pip install gym==0.26
+```
+
+If you want to use NaturalMiner via a graphical user interface in your Web browser, install streamlit:
+```
+pip install streamlit==1.23
 ```
 
 NaturalMiner mines data stored in a Postgres database. If you have not installed Postgres yet, you can install and start it on Ubuntu using the following commands:
